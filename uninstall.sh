@@ -1,18 +1,22 @@
 #!/usr/bin/env bash
 # uninstall.sh — Remove myOpenCodeWithMEeee files from ~/.config/opencode/
 #
-# Removes only files this project installed. Does not touch:
-# - opencode.json or any config
+# Removes only files this project installed, and the matching entry from
+# opencode.json's `plugin` array (if it was registered by install.sh).
+# Does NOT touch:
 # - oh-my-openagent.json or any other plugin config
 # - Existing opencode plugins (rtk.ts, etc.)
 # - Existing AGENTS.md
 # - Existing tools that we did not create (e.g., the user may have their own)
+# - Any providers / MCPs the user added via /connect
 #
 # Idempotent: safe to run multiple times.
 
 set -euo pipefail
 
 TARGET_DIR="${XDG_CONFIG_HOME:-$HOME/.config}/opencode"
+OPENCODE_CONFIG="${TARGET_DIR}/opencode.json"
+PLUGIN_ENTRY="plugins/orchestrator.js"
 
 echo "Uninstalling myOpenCodeWithMEeee from ${TARGET_DIR}"
 echo ""
@@ -55,9 +59,45 @@ rm_target "tools/atomic-commit.js"
 rm_target "tools/context7-docs.js"
 rm_target "tools/playwright-browser.js"
 
-# Our specific plugin
+# Our specific plugin file
 rm_target "plugins/orchestrator.js"
+
+# Unregister plugin from opencode.json (if present)
+if [[ -f "${OPENCODE_CONFIG}" ]]; then
+  DEREGISTER_OUTPUT="$(python3 - "${OPENCODE_CONFIG}" "${PLUGIN_ENTRY}" <<'PY_EOF' 2>&1
+import json, sys
+
+config_path, plugin_entry = sys.argv[1], sys.argv[2]
+try:
+    with open(config_path, "r", encoding="utf-8") as f:
+        config = json.load(f)
+except (json.JSONDecodeError, OSError) as e:
+    print(f"WARN: could not read {config_path}: {e}")
+    sys.exit(0)
+
+plugins = config.get("plugin", [])
+if not isinstance(plugins, list):
+    print(f"WARN: 'plugin' field is not a list; skipping")
+    sys.exit(0)
+
+if plugin_entry not in plugins:
+    print(f"not-registered: {plugin_entry} (not in opencode.json)")
+    sys.exit(0)
+
+plugins = [p for p in plugins if p != plugin_entry]
+config["plugin"] = plugins
+
+with open(config_path, "w", encoding="utf-8") as f:
+    json.dump(config, f, indent=2, ensure_ascii=False)
+    f.write("\n")
+print(f"unregistered: {plugin_entry}")
+PY_EOF
+)"
+  echo "opencode.json: ${DEREGISTER_OUTPUT}"
+else
+  echo "opencode.json: not found (nothing to unregister)"
+fi
 
 echo ""
 echo "✓ Uninstall complete. Restart opencode to apply changes."
-echo "Note: opencode.json was NOT modified. Add/remove the plugin entry manually if needed."
+echo "Note: providers/MCPs you added via /connect are preserved."

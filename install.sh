@@ -71,6 +71,48 @@ copy_file_if_exists \
   "${REPO_DIR}/.opencode/plugins/orchestrator.js" \
   "${TARGET_DIR}/plugins"
 
+# Auto-register the plugin in opencode.json (if it exists and isn't already there)
+# This is the equivalent of `/connect` for plugins — it reuses whatever the user
+# already has in their opencode.json rather than re-declaring providers/MCPs.
+OPENCODE_CONFIG="${TARGET_DIR}/opencode.json"
+PLUGIN_ENTRY="plugins/orchestrator.js"
+
+if [[ -f "${OPENCODE_CONFIG}" ]]; then
+  # Use python3 (universally available) for safe JSON manipulation
+  REGISTER_OUTPUT="$(python3 - "${OPENCODE_CONFIG}" "${PLUGIN_ENTRY}" <<'PY_EOF' 2>&1
+import json, sys, os
+
+config_path, plugin_entry = sys.argv[1], sys.argv[2]
+with open(config_path, "r", encoding="utf-8") as f:
+    config = json.load(f)
+
+plugins = config.get("plugin", [])
+if not isinstance(plugins, list):
+    print(f"WARN: existing 'plugin' field is not a list ({type(plugins).__name__}); skipping auto-registration")
+    sys.exit(0)
+
+# Don't double-register
+if plugin_entry in plugins:
+    print(f"already-registered: {plugin_entry}")
+    sys.exit(0)
+
+plugins.append(plugin_entry)
+config["plugin"] = plugins
+
+# Preserve formatting (2-space indent, trailing newline, sorted keys not required)
+with open(config_path, "w", encoding="utf-8") as f:
+    json.dump(config, f, indent=2, ensure_ascii=False)
+    f.write("\n")
+print(f"registered: {plugin_entry}")
+PY_EOF
+)"
+  echo "opencode.json: ${REGISTER_OUTPUT}"
+else
+  echo "opencode.json: not found at ${OPENCODE_CONFIG} — skipping auto-registration"
+  echo "  To enable the plugin manually, add 'plugins/orchestrator.js' to:"
+  echo "    ${OPENCODE_CONFIG}"
+fi
+
 echo ""
 echo "✓ Install complete. Restart opencode to pick up changes."
 echo ""
