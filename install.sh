@@ -54,13 +54,13 @@ for skill in "${SKILLS[@]}"; do
     "${TARGET_DIR}/skills/${skill}"
 done
 
-# Mirror tools (built .js files in tools/dist/, EXCLUDING .test.js and placeholder.js)
+# Mirror tools (built .js files in tools/dist/, EXCLUDING tests, placeholders, and helper modules)
 if [[ -d "${REPO_DIR}/tools/dist" ]]; then
   for src in "${REPO_DIR}/tools/dist/"*.js; do
     [[ -f "${src}" ]] || continue
-    # Skip test files and placeholders
+    # Skip test files, placeholders, and internal helper modules (bundled into their consumer)
     case "$(basename "${src}")" in
-      *.test.js|*.spec.js|placeholder.js) continue ;;
+      *.test.js|*.spec.js|placeholder.js|hashline-tag.js) continue ;;
     esac
     cp -v "${src}" "${TARGET_DIR}/tools/"
   done
@@ -96,15 +96,15 @@ for skill in "${SKILLS[@]}"; do
   fi
 done
 echo "  Tools:"
-# Use a glob that lists production .js files (exclude .test.js)
+# Use a glob that lists production .js files (exclude .test.js, .spec.js, placeholders, helpers)
 shopt -s nullglob
 prod_tools=("${TARGET_DIR}/tools/"*.js)
 shopt -u nullglob
-# Filter out test/spec files and placeholder
+# Filter out test/spec files, placeholders, and internal helpers
 filtered_tools=()
 for f in "${prod_tools[@]}"; do
   case "$(basename "${f}")" in
-    *.test.js|*.spec.js|placeholder.js) continue ;;
+    *.test.js|*.spec.js|placeholder.js|hashline-tag.js) continue ;;
   esac
   filtered_tools+=("${f}")
 done
