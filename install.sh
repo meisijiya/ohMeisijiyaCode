@@ -54,10 +54,14 @@ for skill in "${SKILLS[@]}"; do
     "${TARGET_DIR}/skills/${skill}"
 done
 
-# Mirror tools (built .js files in tools/dist/)
+# Mirror tools (built .js files in tools/dist/, EXCLUDING .test.js and placeholder.js)
 if [[ -d "${REPO_DIR}/tools/dist" ]]; then
   for src in "${REPO_DIR}/tools/dist/"*.js; do
     [[ -f "${src}" ]] || continue
+    # Skip test files and placeholders
+    case "$(basename "${src}")" in
+      *.test.js|*.spec.js|placeholder.js) continue ;;
+    esac
     cp -v "${src}" "${TARGET_DIR}/tools/"
   done
 fi
@@ -92,6 +96,24 @@ for skill in "${SKILLS[@]}"; do
   fi
 done
 echo "  Tools:"
-list_dir "${TARGET_DIR}/tools"*.js 2>/dev/null | sed 's/^/  /' || echo "    (none built yet)"
+# Use a glob that lists production .js files (exclude .test.js)
+shopt -s nullglob
+prod_tools=("${TARGET_DIR}/tools/"*.js)
+shopt -u nullglob
+# Filter out test/spec files and placeholder
+filtered_tools=()
+for f in "${prod_tools[@]}"; do
+  case "$(basename "${f}")" in
+    *.test.js|*.spec.js|placeholder.js) continue ;;
+  esac
+  filtered_tools+=("${f}")
+done
+if [[ ${#filtered_tools[@]} -gt 0 ]]; then
+  for f in "${filtered_tools[@]}"; do
+    echo "    $(basename "${f}")"
+  done
+else
+  echo "    (none built yet)"
+fi
 echo "  Plugins:"
 list_dir "${TARGET_DIR}/plugins" | sed 's/^/  /'
