@@ -88,10 +88,7 @@ OpenSpec：绕过
 
 ### 拿到 task_id 之后做什么
 1. **立即给用户反馈**：「Lyra 在后台跑 `task_xxx`，预计 1-3 分钟」
-2. **主 Agent 不要傻等**——继续推进其他可以并行做的工作：
-   - 准备 Lyra 完成后需要的下一步（比如：先 read 用户提到的其他文件）
-   - 派发其他独立的子任务（多条 Lyra / Hephaestus 可以并行跑）
-   - 给用户展示阶段性进展
+2. **主 Agent 不要傻等**——可以推进其他准备工作（比如：先 read 用户提到的其他文件）
 3. **用 task_id 续接**：当用户回复「继续」/「等结果」/ 提到具体 task_id 时，再读取结果
 
 ### 何时同步等（少数情况）
@@ -103,15 +100,6 @@ OpenSpec：绕过
 - 跨服务调研（Context7 / Web 搜索）
 - 批量操作（Hephaestus CRUD）
 - 不确定耗时的研究类任务
-
-### 并行派发模式
-如果用户的请求可以拆成多个**独立子任务**，并行派发：
-```
-task(subagent_type: "lyra", background: true, prompt: "子任务 A")
-task(subagent_type: "lyra", background: true, prompt: "子任务 B")
-task(subagent_type: "hephaestus", background: true, prompt: "子任务 C")
-# 三个并行跑，主线程汇总结果
-```
 
 ## 嵌套规则：深度=3（主 → 子 → 叶子）
 - Sisyphus (主) 可调 Lyra + Hephaestus
