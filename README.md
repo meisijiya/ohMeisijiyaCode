@@ -1,8 +1,80 @@
 # myOpenCodeWithMEeee
 
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](./LICENSE)
+
 > Custom **1 + 1 + 1 agent system** for opencode, with **3-tier model routing** (high / mid / low). Drawing design from [Pi Subagents](https://github.com/mattpocock/skills) (frontmatter nesting + bash safety) and [oh-my-openagent](https://github.com/code-yeongyu/oh-my-openagent), with [karpathy-guidelines](https://github.com/multica-ai/andrej-karpathy-skills) and [OpenSpec](https://github.com/Fission-AI/OpenSpec) integrations.
 
-## v2 Architecture — 1 + 1 + 1 (depth=3)
+---
+
+## ⚡ 一键安装
+
+```bash
+git clone https://github.com/meisijiya/myOpenCodeWithMEeee.git
+cd myOpenCodeWithMEeee
+bash install.sh
+```
+
+**安装脚本会自动完成**：
+
+| 自动化项 | 详情 |
+|---------|------|
+| **3 agents** | `sisyphus.md` / `lyra.md` / `hephaestus.md` → `~/.config/opencode/agents/` |
+| **5 skills** | karpathy-guidelines / openspec-integration / grill-with-docs / diagnose / to-issues |
+| **2 tools** | `hashline-edit.js` / `task-dispatch.js` → `~/.config/opencode/tools/` |
+| **1 plugin** | `orchestrator.js` 自动注册到 `opencode.json` 的 `plugin` 数组 |
+| **2 MCPs** | `@context7/mcp` (远程文档) + `@playwright/mcp` (浏览器自动化) 自动注册 |
+
+> 所有操作**幂等**——重复运行不会重复注册。
+
+卸载：
+
+```bash
+bash uninstall.sh   # 移除所有上述文件 + 清理插件注册 + MCP 注册
+```
+
+---
+
+## ⚙️ 模型配置（必须手工配）
+
+安装完后，编辑 `~/.config/opencode/opencode.json`，添加 3 档模型：
+
+```json
+{
+  "agent": {
+    "sisyphus":   { "model": "<provider>/<high-tier-model-id>" },
+    "lyra":       { "model": "<provider>/<mid-tier-model-id>" },
+    "hephaestus": { "model": "<provider>/<low-tier-model-id>" }
+  }
+}
+```
+
+### 推荐搭配
+
+| 档位 | 角色 | 推荐模型（示例） | 月费估算 |
+|------|------|-----------------|---------|
+| **high** | Sisyphus — 架构决策、意图路由 | `anthropic/claude-opus-4-20250514` 或 `deepseek/deepseek-v4-pro` | ~$200 |
+| **mid** | Lyra — 复杂实现、调研 | `anthropic/claude-sonnet-4-20250514` 或 `deepseek/deepseek-v4-flash` | ~$20 |
+| **low** | Hephaestus — CRUD、机械重构 | `anthropic/claude-haiku-4-20250514` 或 `deepseek/deepseek-v4-flash-free` | ~$0 |
+
+### 全局默认模型（省事方案）
+
+如果不想配 3 个 agent，可以只设全局 model：
+
+```json
+{
+  "model": "anthropic/claude-sonnet-4-20250514"
+}
+```
+
+> ⚠️ 这种情况下，orchestrator 插件会在每次 LLM 调用时注入一条 warning，提示 3 档位未配置。不影响使用，但推荐完整配置以获得最佳性价比。
+
+### Provider 配置
+
+Provider / API Key 通过 opencode 的 `/connect` 命令配置（TUI 内），或者直接在 `opencode.json` 的 `provider` 段配置。本项目**不**管理 provider 配置——复用你已有的 opencode 环境。
+
+---
+
+## 🏗️ 架构
 
 ```
 ┌──────────────────────────────────────────────────────────┐
@@ -25,150 +97,158 @@
 
 **Strict depth=3 rule**: Hephaestus's `task: deny` is opencode's hard guarantee — the Task tool is **physically removed** from Hephaestus's available tools. No infinite recursion.
 
-## What's Inside
-
-| Layer | v1 → v2 | Notes |
-|------|---------|-------|
-| **Agents** | 2 (Sisyphus + Oracle) → **3** (Sisyphus + Lyra + Hephaestus) | 1+1+1 architecture |
-| **Model tiers** | 1 (inherit) → **3** (high/mid/low) | User-configurable in `opencode.json` |
-| **Tools** | 9 → **2** | `hashline-edit` + `task-dispatch` |
-| **Skills** | 2 → **5** | + `grill-with-docs`, `diagnose`, `to-issues` (imported from mattpocock/skills) |
-| **MCPs** | 1 (MiniMax) → **3** | + `@context7/mcp` + `@playwright/mcp` |
-| **Tests** | 84 → **59** | 7 self-built tools deleted |
-
-## Bring-in Principle
-
-> **Lightweight + bring-in**: don't reinvent wheels; use opencode built-ins + MCPs; innovate in **prompts, routing, architecture**.
-
-| v1 self-built tool | v2 replacement |
-|-------------------|----------------|
-| `web-search` | `mcp__MiniMax__web_search` |
-| `image-inspect` | `mcp__MiniMax__understand_image` |
-| `mermaid-render` | `webfetch` + skill prompt |
-| `pr-reader` | `webfetch` + `gh` CLI |
-| `context7-docs` | `@context7/mcp` |
-| `playwright-browser` | `@playwright/mcp` |
-| `atomic-commit` | `bash` + `git` + skill |
-| `ast-search` | `grep` + LSP MCP |
-
-## Kept Innovations
-
-Two tools survived the v1 → v2 cut because they are **true innovations** that MCPs/built-ins can't replicate:
-
-- **`hashline-edit`** — line + FNV-1a CID anchors prevent edit drift on long files (omO data 6.7% → 68.3%)
-- **`task-dispatch`** — single explicit surface for Sisyphus to invoke, with **MCP proxy mode** (`mcp:<server>:<tool>`) and **agent dispatch mode**
-
-## How It Integrates with opencode
-
-This project is a **drop-in addition** to your existing opencode setup. It does **not** require any separate provider/MCP configuration — it reuses whatever you've already configured via opencode's `/connect` command and your `opencode.json`.
-
-| What | Where it lives | How to configure |
-|------|---------------|------------------|
-| **Providers / API keys** | opencode's own `opencode.json` | `/connect` in TUI (or edit `opencode.json` directly) |
-| **3-tier model assignment** | opencode's own `opencode.json` | `agent.sisyphus.model`, `agent.lyra.model`, `agent.hephaestus.model` |
-| **MCP servers** (MiniMax, Context7, Playwright) | opencode's own `opencode.json` | `bash install.sh` (auto-registers Context7 + Playwright; MiniMax via `/connect`) |
-| **3 agents** | This project, mirrored to `~/.config/opencode/agents/` | `bash install.sh` |
-| **5 skills** | This project, mirrored to `~/.config/opencode/skills/` | `bash install.sh` |
-| **2 custom tools** | This project, mirrored to `~/.config/opencode/tools/` | `bash install.sh` |
-| **Orchestrator plugin** | This project, registered in your `opencode.json` | `bash install.sh` (auto-registers) |
-| **OpenSpec integration** | This project, in `.opencode/skills/openspec-*` and `.opencode/commands/opsx-*` | `openspec init --tools opencode` |
-
-Agents **omit the `model` field entirely**. opencode 1.16.2 rejects both `model: inherit` and `model: <placeholder>` — model assignment comes from `opencode.json` per-agent config. The orchestrator plugin validates the 3-tier config and warns if any tier is unassigned.
-
-## Quick Start
-
-```bash
-# 1. Install (mirrors files to ~/.config/opencode/, auto-registers plugin + 2 MCPs)
-bash install.sh
-
-# 2. Configure 3-tier models in ~/.config/opencode/opencode.json
-# Example:
-#   "agent": {
-#     "sisyphus":    { "model": "anthropic/claude-opus-4-20250514" },   # high
-#     "lyra":        { "model": "anthropic/claude-sonnet-4-20250514" }, # mid
-#     "hephaestus":  { "model": "anthropic/claude-haiku-4-20250514" }   # low
-#   }
-
-# 3. Start opencode
-opencode
-
-# 4. Press [TAB] to cycle: build → sisyphus → lyra → hephaestus → ...
-```
-
-## Repository Layout
-
-```
-myOpenCodeWithMEeee/
-├── agents/
-│   ├── sisyphus.md          # primary (high-tier) — 6 XML segments + 9-row routing
-│   ├── lyra.md              # subagent (mid-tier) — can delegate to Hephaestus
-│   └── hephaestus.md        # subagent (low-tier) — task:deny, bash safe-glob
-├── skills/
-│   ├── karpathy-guidelines/ # import: multica-ai/andrej-karpathy-skills
-│   ├── openspec-integration/# local: routing bridge to OpenSpec commands
-│   ├── grill-with-docs/     # import: mattpocock/skills
-│   ├── diagnose/            # import: mattpocock/skills
-│   └── to-issues/           # import: mattpocock/skills
-├── tools/
-│   ├── src/
-│   │   ├── hashline-edit.ts          # true innovation (kept)
-│   │   ├── hashline-tag.ts           # helper (kept, internal)
-│   │   ├── task-dispatch.ts          # router + MCP proxy (rewritten)
-│   │   └── *.test.ts                 # 59 tests passing
-│   └── dist/                         # built artifacts (gitignored)
-├── .opencode/
-│   ├── src/orchestrator.ts           # 3-tier validation, karpathy injection
-│   └── plugins/orchestrator.js       # built artifact
-├── docs/
-│   ├── 2026-06-10-1plus1plus1-agent-system-design.md  # v2 design spec
-│   ├── 2026-06-10-v2-migration-plan.md                # v2 implementation plan
-│   └── 2026-06-09-1plus1-agent-system-design.md       # v1 design (archived)
-├── install.sh        # idempotent installer
-└── uninstall.sh      # idempotent uninstaller
-```
-
-## Routing Logic (in Sisyphus's prompt)
+### 路由逻辑
 
 | Intent | Trigger | Route | Tier | OpenSpec |
 |-------|---------|-------|------|----------|
 | ARCHITECTURE | major architecture decisions | self | high | yes |
-| DESIGN | new feature design | self | high | yes |
-| COMPLEX_CODE | cross-file new feature | **Lyra** | mid | yes |
+| DESIGN | new feature design (incl. single-file) | self | high | yes |
+| COMPLEX_CODE | cross-file new feature (≥2 files) | **Lyra** | mid | yes |
 | RESEARCH | investigation, docs | **Lyra** | mid | no |
-| DEBUG_HARD | complex bug | **Lyra** | mid | no |
-| DEBUG_SIMPLE | obvious bug | self | high | no |
-| CRUD | repetitive write | **Hephaestus** | low | no |
-| ATOMIC_REFACTOR | mechanical refactor | **Hephaestus** | low | no |
+| DEBUG_HARD | complex bug (diagnose + fix + verify) | **Lyra** | mid | no |
+| DEBUG_SIMPLE | obvious bug (≤10 lines) | self | high | no |
+| CRUD | 3+ similar files | **Hephaestus** | low | no |
+| ATOMIC_REFACTOR | mechanical transform (e.g. rename) | **Hephaestus** | low | no |
 | TEST_BOILERPLATE | test scaffolding | **Hephaestus** | low | no |
 
-**Key insight**: **reasoning complexity** (not file count) decides the tier.
+**核心判断**：**推理复杂度**（不是文件数）决定档位。
 
-## Verification
+---
+
+## 🧩 技能体系
+
+### Bring-in Skills（外部导入，不做自研）
+
+| Skill | 来源 | 触发条件 | 适用 Agent |
+|-------|------|---------|-----------|
+| **karpathy-guidelines** | multica-ai/andrej-karpathy-skills | 所有 LLM 调用（orchestrator 自动注入） | 全部 |
+| **grill-with-docs** | mattpocock/skills | 压测计划与领域模型一致性 | Sisyphus / Lyra |
+| **diagnose** | mattpocock/skills | 硬 bug、性能回归（6 阶段循环） | Lyra（主场景） |
+| **to-issues** | mattpocock/skills | 把 plan/spec 拆成独立 issues | Sisyphus |
+
+### OpenSpec 集成（项目级规约驱动）
+
+| Command | 功能 | 谁用 |
+|---------|------|------|
+| `/opsx:propose` | 创建 change 提案 | Sisyphus / Lyra |
+| `/opsx:explore` | 自由探索 | Sisyphus / Lyra |
+| `/opsx:apply` | 实施 tasks.md | Lyra（委派执行） |
+| `/opsx:sync` | 合并 delta → 主 spec | Sisyphus |
+| `/opsx:archive` | 归档完成的 change | Sisyphus |
+
+**Hephaestus 全部绕过 OpenSpec**——CRUD 不需要规约。
+
+### Superpowers 工作流（14 skills，预装在 opencode 环境）
+
+本项目**不**自带 Superpowers skill 文件——它们随 opencode 的 superpowers 插件提供。Sisyphus 的 `<openspec_protocol>` 段负责路由：提到 OpenSpec 关键词 → 走 OpenSpec；默认 → 走 Superpowers。
+
+---
+
+## 📦 组件清单
+
+| 组件 | 类型 | 数量 | 来源 |
+|------|------|------|------|
+| Agents | `.md` prompt 文件 | **3** | 自研 |
+| Skills | `SKILL.md` 文件 | **5** | 2 自研 + 3 外部导入 |
+| Tools | TypeScript → `.js` | **2** | 自研（hashline-edit + task-dispatch） |
+| Plugin | `orchestrator.js` | **1** | 自研 |
+| MCPs | opencode.json 注册 | **3** | MiniMax (用户已配) + Context7 + Playwright (自动注册) |
+
+---
+
+## 🛠️ 自定义须知
+
+### 修改 Agent 行为
+
+编辑 `agents/<agent>.md`，然后重跑安装：
 
 ```bash
-# Tests (59 pass, 0 fail)
+vim agents/sisyphus.md   # 改路由规则、委派协议、style_guide
+bash install.sh           # 镜像到 ~/.config/opencode/
+```
+
+### 添加新 Skill
+
+```bash
+mkdir -p skills/my-skill
+cp /path/to/SKILL.md skills/my-skill/
+# 加到 install.sh 的 SKILLS 数组
+bash install.sh
+```
+
+### 修改工具
+
+```bash
+cd tools
+vim src/task-dispatch.ts   # 改路由/MCP代理逻辑
+bun test                   # 验证测试
+bun run build              # 构建
+bash ../install.sh         # 部署
+```
+
+### 跳过某个组件
+
+install.sh 只安装**存在**的文件。要跳过：
+- Agent：删掉 `agents/<name>.md` 后跑 install
+- Skill：从 `SKILLS` 数组移除对应条目
+- Tool：删掉 `tools/dist/<tool>.js`
+
+---
+
+## 🔍 验证
+
+```bash
+# 测试 (65 pass, 0 fail)
 cd tools && bun test
 
-# Typecheck
-cd tools && bun run typecheck    # 0 errors
+# Typecheck (0 errors)
+cd tools && bun run typecheck
 
-# Build
-cd tools && bun run build        # 3 .js + 2 .test.js
+# 构建
+cd tools && bun run build
 
-# Install (mirrors + auto-registers plugin + 2 MCPs)
+# 安装（幂等）
 bash install.sh
 
-# opencode.json MCPs
+# 确认 MCP 注册
 python3 -c "import json; c=json.load(open('$HOME/.config/opencode/opencode.json')); print(list(c['mcp'].keys()))"
-# ['MiniMax', 'Context7', 'Playwright']
+# → ['MiniMax', 'Context7', 'Playwright']
 ```
 
-## Uninstall
+---
 
-```bash
-bash uninstall.sh   # removes all 3 agents, 5 skills, 2 tools, 1 plugin, deregisters 2 MCPs
+## 📁 仓库结构
+
+```
+myOpenCodeWithMEeee/
+├── agents/                 # 3 agent prompt 文件
+│   ├── sisyphus.md         # primary (high-tier) — 7 XML segments + 9-row routing
+│   ├── lyra.md             # subagent (mid-tier) — can delegate to Hephaestus
+│   └── hephaestus.md       # subagent (low-tier) — task:deny, bash safe-glob
+├── skills/                 # 5 个 skill（SKILL.md）
+│   ├── karpathy-guidelines/
+│   ├── openspec-integration/
+│   ├── grill-with-docs/
+│   ├── diagnose/
+│   └── to-issues/
+├── tools/                  # 2 个自研工具
+│   ├── src/                # TypeScript 源码 + 测试
+│   └── dist/               # 构建产物（gitignored）
+├── .opencode/
+│   ├── src/orchestrator.ts # 插件源码（karpathy 注入 + 3 档位检查）
+│   └── plugins/            # 构建产物
+├── docs/                   # 设计文档
+│   ├── 2026-06-10-1plus1plus1-agent-system-design.md
+│   └── 2026-06-10-v2-migration-plan.md
+├── install.sh              # 一键安装（幂等）
+├── uninstall.sh            # 一键卸载
+├── CHANGELOG.md            # 变更日志
+├── CONTRIBUTING.md         # 贡献指南
+└── LICENSE                 # MIT
 ```
 
-## License
+---
 
-MIT
+## 📄 License
+
+本项目采用 MIT 许可证，详见 [LICENSE](./LICENSE)。
