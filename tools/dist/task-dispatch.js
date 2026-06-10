@@ -12677,32 +12677,76 @@ var init_dist = __esm(() => {
 });
 
 // src/task-dispatch.ts
-init_dist();
-var z = tool.schema;
-var TaskDispatchSchema = z.object({
-  subagent_type: z.string().default("oracle").describe("Subagent type (e.g., 'oracle')"),
-  description: z.string().describe("3-5 word task description"),
-  prompt: z.string().describe("Full task description with context"),
-  background: z.boolean().default(false).describe("If true, return task_id immediately for fire-and-forget")
+var exports_task_dispatch = {};
+__export(exports_task_dispatch, {
+  default: () => task_dispatch_default
 });
-var task_dispatch_default = tool({
-  description: "Dispatch a task to a sub agent (typically 'oracle'). Returns task result or task_id (if background=true). Use for read-only analysis, exploration, or research.",
-  args: {
-    subagent_type: TaskDispatchSchema.shape.subagent_type,
-    description: TaskDispatchSchema.shape.description,
-    prompt: TaskDispatchSchema.shape.prompt,
-    background: TaskDispatchSchema.shape.background
-  },
-  async execute(args, context) {
-    return JSON.stringify({
-      subagent_type: args.subagent_type,
-      description: args.description,
-      prompt: args.prompt,
-      background: args.background,
-      note: "This tool returns the normalized parameters. The actual sub agent invocation is handled by opencode's built-in task tool."
-    }, null, 2);
+function parseSubagentType(value) {
+  if (value.startsWith("mcp:")) {
+    const [, server, toolName] = value.split(":");
+    if (!server || !toolName) {
+      throw new Error(`Invalid MCP format: '${value}'. Expected 'mcp:<server>:<tool>'`);
+    }
+    return { kind: "mcp", mcpServer: server, mcpTool: toolName };
   }
+  return { kind: "agent", agent: value };
+}
+var z, TaskDispatchSchema, task_dispatch_default;
+var init_task_dispatch = __esm(() => {
+  init_dist();
+  z = tool.schema;
+  TaskDispatchSchema = z.object({
+    subagent_type: z.string().default("oracle").describe("Subagent type (oracle, lyra, hephaestus, or mcp:<server>:<tool>)"),
+    description: z.string().describe("3-5 word task description"),
+    prompt: z.string().describe("Full task description with context"),
+    background: z.boolean().default(false).describe("If true, return task_id immediately for fire-and-forget"),
+    timeout_ms: z.number().optional().describe("Optional timeout in milliseconds (default: no timeout)")
+  });
+  task_dispatch_default = tool({
+    description: "Dispatch a task to a sub-agent (oracle/lyra/hephaestus) OR proxy an MCP tool call. " + "Use 'mcp:<server>:<tool>' format for MCP proxy (e.g., 'mcp:MiniMax:web_search'). " + "Returns task result, MCP result, or task_id (if background=true).",
+    args: {
+      subagent_type: TaskDispatchSchema.shape.subagent_type,
+      description: TaskDispatchSchema.shape.description,
+      prompt: TaskDispatchSchema.shape.prompt,
+      background: TaskDispatchSchema.shape.background,
+      timeout_ms: TaskDispatchSchema.shape.timeout_ms
+    },
+    async execute(args) {
+      const subagentType = args.subagent_type;
+      const description = args.description;
+      const prompt = args.prompt;
+      const background = args.background ?? false;
+      const timeoutMs = args.timeout_ms;
+      let parsed;
+      try {
+        parsed = parseSubagentType(subagentType);
+      } catch (err) {
+        return `Error: ${err.message}`;
+      }
+      if (parsed.kind === "mcp") {
+        return JSON.stringify({
+          kind: "mcp",
+          server: parsed.mcpServer,
+          tool: parsed.mcpTool,
+          description,
+          prompt,
+          note: "MCP proxy: this tool normalizes the call. Use the MCP tool directly via " + "`mcp__<server>__<tool>` syntax in your tool calls."
+        }, null, 2);
+      }
+      return JSON.stringify({
+        kind: "agent",
+        subagent_type: parsed.agent,
+        description,
+        prompt,
+        background,
+        timeout_ms: timeoutMs ?? null,
+        note: "Agent dispatch: this tool normalizes the call. " + "opencode's built-in task tool handles the actual sub-agent invocation."
+      }, null, 2);
+    }
+  });
 });
+init_task_dispatch();
+
 export {
   task_dispatch_default as default
 };
