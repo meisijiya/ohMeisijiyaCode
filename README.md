@@ -286,6 +286,81 @@ install.sh 只安装**存在**的文件。要跳过：
 - Skill：从 `SKILLS` 数组移除对应条目
 - Tool：删掉 `tools/dist/<tool>.js`
 
+### 项目级自定义（推荐模式）
+
+我们的项目是**全局层配置**——你装到 `~/.config/opencode/` 后，所有项目都能用。如果想给某个项目加项目级规则，按官方分层加即可：
+
+#### 1. 项目级 `AGENTS.md`（项目专属规则）
+在项目根创建 `AGENTS.md`，**与全局 AGENTS.md 合并加载**（项目级优先）：
+
+```bash
+cd your-project
+cat > AGENTS.md <<'EOF'
+# My Project Rules
+## 构建命令
+- `bun install` 安装依赖
+- `bun test` 跑测试
+- `bun run build` 构建
+
+## 架构约定
+- src/components/ - React 组件
+- src/api/ - 后端 API 路由
+- tests/ - 单元测试
+EOF
+```
+
+**加载规则**：opencode 从 cwd 向上扫到 git worktree，匹配到的第一个 `AGENTS.md` 优先；找不到时回退到 `~/.config/opencode/AGENTS.md`。
+
+#### 2. 项目级 `opencode.json`（合并而非替换）
+在项目根创建 `opencode.json`，**与全局 `~/.config/opencode/opencode.json` 合并加载**：
+
+```json
+{
+  "$schema": "https://opencode.ai/config.json",
+  "agent": {
+    "sisyphus": { "model": "anthropic/claude-opus-4-20250514" }
+  }
+}
+```
+
+**合并规则**：项目级**只覆盖冲突键**；全局的 provider/MCP/plugin 全部保留。所以你装了我们项目后，**不必再配置 provider**——复用全局的就行。
+
+#### 3. 项目级 Skill 加载
+opencode 默认会扫描以下 6 个路径：
+
+| 位置 | 优先级 |
+|------|--------|
+| `.opencode/skills/<name>/SKILL.md` | 项目级（叠加全局） |
+| `.claude/skills/<name>/SKILL.md` | 项目级（Claude 兼容） |
+| `.agents/skills/<name>/SKILL.md` | 项目级（agent 兼容） |
+| `~/.config/opencode/skills/<name>/SKILL.md` | 全局 |
+| `~/.claude/skills/<name>/SKILL.md` | 全局（Claude 兼容） |
+| `~/.agents/skills/<name>/SKILL.md` | 全局（agent 兼容） |
+
+**所有路径的同名 skill 都会被加载**。如果项目里某个 skill 想覆盖全局同名 skill，**用 `permission` 字段控制可见性**：
+
+```json
+// .opencode/opencode.json
+{
+  "permission": {
+    "skill": {
+      "karpathy-guidelines": "deny"  // 项目里隐藏全局的
+    }
+  }
+}
+```
+
+#### 4. 项目级 Agent 覆盖
+如果某个项目想覆盖我们 3 个 agent 的行为，在 `.opencode/agents/` 放同名 `.md`：
+
+```bash
+mkdir -p .opencode/agents
+cp ~/.config/opencode/agents/sisyphus.md .opencode/agents/sisyphus.md
+# 编辑项目级 sisyphus.md（修改 intent_gate 路由等）
+```
+
+**加载规则**：项目级同名 agent 覆盖全局。我们的 `install.sh` 只装到 `~/.config/opencode/agents/`——**不会污染项目目录**。
+
 ---
 
 ## 🔍 验证
