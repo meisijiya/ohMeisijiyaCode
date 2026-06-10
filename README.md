@@ -87,6 +87,15 @@ ls ~/.cache/opencode/packages/  # 确认 Superpowers 已安装
 openspec --version              # 确认 openspec CLI 可用（可选）
 ```
 
+### ⚠️ 关于 mattpocock/skills
+
+我们的 `grill-with-docs`、`diagnose`、`to-issues` 是从 [mattpocock/skills](https://github.com/mattpocock/skills) **原样导入**的（verbatim import）——只取了项目实际需要的 3 个，不是全量 11 个。**不要**另外跑 mattpocock 的官方 setup 脚本，否则同名 skill 会冲突，opencode 按文件系统遍历顺序去重，结果不可预测。
+
+| 方式 | 效果 |
+|------|------|
+| ✅ 用我们的 `install.sh` | 恰好 3 个，无冲突 |
+| ❌ 额外跑 mattpocock 官方 setup | 3 个重名 skill，不确定哪个生效 |
+
 ---
 
 ## ⚙️ 模型配置（必须手工配）
