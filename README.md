@@ -21,7 +21,7 @@ bash install.sh
 | Automated Item | Details |
 |---------------|---------|
 | **3 agents** | `sisyphus.md` / `lyra.md` / `hephaestus.md` → `~/.config/opencode/agents/` |
-| **6 skills** | karpathy-guidelines / openspec-integration / grill-with-docs / diagnose / to-issues / mmx-cli-usage |
+| **8 skills** | karpathy-guidelines / openspec-integration / grill-with-docs / diagnose / to-issues / mmx-cli-usage / interview-me / source-driven-development |
 | **2 tools** | `hashline-edit.js` / `task-dispatch.js` → `~/.config/opencode/tools/` |
 | **1 plugin** | `orchestrator.js` auto-registered to `opencode.json`'s `plugin` array |
 | **AGENTS.md template** | Only copied if you don't have a global `~/.config/opencode/AGENTS.md` (**never overwrites** your personal config) |
@@ -188,6 +188,8 @@ After `bash install.sh`, these skills are mirrored to `~/.config/opencode/skills
 | `diagnose` | Imported from mattpocock/skills | Hard bugs, performance regressions |
 | `to-issues` | Imported from mattpocock/skills | Break plan into independent issues |
 | `mmx-cli-usage` | Self-built (mmx guide) | Multimodal / search needs |
+| `interview-me` | Imported from addyosmani/agent-skills | Underspecified ask (missing who/why/success/constraint) |
+| `source-driven-development` | Lightweight re-implementation of addyosmani skill | Framework/API decision needs official doc verification (use ctx7 CLI) |
 
 ### Quick Verification
 
@@ -285,6 +287,39 @@ After install, opencode defaults to two primary agents: **build** and **plan**. 
 ```
 
 You can also let Sisyphus delegate directly in conversation (it auto-selects based on its intent_gate routing table).
+
+---
+
+## 🌟 Inspiration & Provenance
+
+This project synthesizes ideas from multiple sources. Every imported skill cites its origin in the frontmatter `metadata.source` / `sourceUrl`.
+
+### Foundations
+
+| Source | What we took | What we skipped |
+|--------|--------------|------------------|
+| **[Superpowers](https://github.com/obra/superpowers)** | Default workflow foundation (brainstorming → writing-plans → subagent-driven-dev → review → finish) | We don't bundle their skill files (user installs via `opencode plugin install`) |
+| **[Pi Subagents](https://github.com/mattpocock/skills)** | `permission.task` (depth=3 nesting) + `permission.bash` safe-glob | We don't import Pi agent configs (opencode-native instead) |
+| **[Matt Pocock skills](https://github.com/mattpocock/skills)** | 3 verbatim imports: `grill-with-docs`, `diagnose`, `to-issues` | Don't run their full installer (3-skill conflict risk; we picked the 3 we need) |
+| **[karpathy-guidelines](https://github.com/multica-ai/andrej-karpathy-skills)** | 4 coding principles (Think/Simplicity/Surgical/Goal-Driven) | — |
+| **[OpenSpec](https://github.com/Fission-AI/OpenSpec)** | Two-layer trigger routing (keyword + semantic) | We don't bundle the generated skills/commands (user runs `openspec init` per-project) |
+| **[oh-my-openagent](https://github.com/code-yeongyu/oh-my-openagent)** | Architecture inspiration (orchestrator → specialists pattern) | We don't use 100K+ LOC codebase or HTTP-based background subagents (plugin mode can't) |
+| **[oh-my-opencode-slim](https://github.com/alvinunreal/oh-my-opencode-slim)** | Role-based permission tiers (read-only vs read-write agents) | We don't import 5+ specialist agents (we keep 3 tiers) |
+| **[addyosmani/agent-skills](https://github.com/addyosmani/agent-skills)** | `interview-me` (verbatim) + `source-driven-development` (lightweight re-implementation) | We don't import all 23 skills (lightweight principle) |
+| **[RTK](https://github.com/rtk-ai/rtk)** | Recommended for 60-90% token savings | — |
+
+### AI Model Attention Insights
+
+We apply insights from [BV1v9ER68EJE](https://www.bilibili.com/video/BV1v9ER68EJE/) ("如何解决AI模型注意力涣散问题"):
+
+| Insight | Applied |
+|---------|--------|
+| **U-shape attention curve** (>50% context → only end matters) | `<style_guide>` is the LAST segment in all 3 agent prompts; HTML comment block at Sisyphus tail emphasizes "关键尾部提示词" |
+| **Hard constraints (never/always/must/绝对不要)** | Rewrote all 3 agents' `style_guide` with strong vocabulary + 反例/正例 |
+| **Skill files ≤ 300-500 lines** | All skills under 250 lines; Sisyphus.md at 363 (acceptable) |
+| **Solutions 1+2+3+4** (AGENTS.md + Scan + Hooks + SubAgent isolation) | All present: orchestrator plugin (`experimental.chat.system.transform`) is our "Hook"; subagent isolation is core to 1+1+1 architecture |
+| **Anti-compaction-passive** (don't wait for quality to drop) | 3-piece verification (`<delegation_review>`) catches issues early per-call |
+| **Soft constraints = no constraints** | `bash: *: allow` (project-internal trust) + hard deny blacklists (not "尽量") |
 
 ---
 
@@ -412,6 +447,8 @@ bash install.sh   # Re-mirror to ~/.config/opencode/
 | **grill-with-docs** | mattpocock/skills | Stress-test plan vs domain model consistency | Sisyphus / Lyra |
 | **diagnose** | mattpocock/skills | Hard bugs, performance regressions (6-phase loop) | Lyra (primary use) |
 | **to-issues** | mattpocock/skills | Break down plan/spec into independent issues | Sisyphus |
+| **interview-me** | addyosmani/agent-skills (verbatim) | Underspecified ask (missing who/why/success/constraint) — interview one-question-at-a-time to 95% confidence | Sisyphus |
+| **source-driven-development** | addyosmani/agent-skills (lightweight re-implementation) | Framework/API decision needs official doc verification via `ctx7` CLI | Lyra (during implementation) |
 
 ### OpenSpec Integration (Project-Level Spec-Driven)
 
@@ -470,7 +507,7 @@ The **full workflow foundation** of this project. Superpowers provides end-to-en
 | Component | Type | Count | Source |
 |-----------|------|-------|--------|
 | Agents | `.md` prompt files | **3** | Self-built |
-| Skills | `SKILL.md` files | **6** | 2 self-built + 4 imported |
+| Skills | `SKILL.md` files | **8** | 3 self-built + 5 imported (3 from mattpocock + 1 from addyosmani + 1 re-implemented from addyosmani) |
 | Tools | TypeScript → `.js` | **2** | Self-built (hashline-edit + task-dispatch) |
 | Plugin | `orchestrator.js` | **1** | Self-built |
 | CLIs | npm -g | **3** | mmx-cli (MiniMax multimodal+search) + ctx7 (lib docs) + playwright-cli (browser automation) |
@@ -639,13 +676,15 @@ myOpenCodeWithMEeee/
 │   ├── sisyphus.md         # primary (high-tier) — 7 XML segments + 9-row routing
 │   ├── lyra.md             # subagent (mid-tier) — can delegate to Hephaestus
 │   └── hephaestus.md       # subagent (low-tier) — task:deny, bash safe-glob
-├── skills/                 # 6 skills (SKILL.md)
-│   ├── karpathy-guidelines/
-│   ├── openspec-integration/
-│   ├── grill-with-docs/
-│   ├── diagnose/
-│   ├── to-issues/
-│   └── mmx-cli-usage/
+├── skills/                 # 8 skills (SKILL.md)
+│   ├── karpathy-guidelines/      # 4 karpathy principles (auto-injected)
+│   ├── openspec-integration/     # OpenSpec ↔ Superpowers routing bridge
+│   ├── grill-with-docs/          # from mattpocock
+│   ├── diagnose/                 # from mattpocock
+│   ├── to-issues/                # from mattpocock
+│   ├── mmx-cli-usage/            # mmx CLI guide
+│   ├── interview-me/            # from addyosmani (verbatim, 1Q-at-a-time)
+│   └── source-driven-development/ # lightweight re-impl of addyosmani skill
 ├── tools/                  # 2 self-built tools
 │   ├── src/                # TypeScript source + tests
 │   └── dist/               # Build artifacts (gitignored)

@@ -45,9 +45,11 @@ rm_target "agents/hephaestus.md"
 # Our specific skills
 rm_target_dir "skills/diagnose"
 rm_target_dir "skills/grill-with-docs"
+rm_target_dir "skills/interview-me"
 rm_target_dir "skills/karpathy-guidelines"
 rm_target_dir "skills/mmx-cli-usage"
 rm_target_dir "skills/openspec-integration"
+rm_target_dir "skills/source-driven-development"
 rm_target_dir "skills/to-issues"
 
 # Our specific tools (only those we created)
