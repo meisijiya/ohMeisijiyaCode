@@ -29,6 +29,9 @@
 import type { Plugin } from "@opencode-ai/plugin";
 
 const KARPATHY_PATH = `${process.env.HOME}/.config/opencode/skills/karpathy-guidelines/SKILL.md`;
+const OPENCODE_CONFIG_PATH = `${process.env.HOME}/.config/opencode/opencode.json`;
+
+const TIER_AGENTS = ["sisyphus", "lyra", "hephaestus"] as const;
 
 let karpathyContent: string | null = null;
 
@@ -47,6 +50,31 @@ async function loadProjectAgents(directory: string): Promise<string | null> {
   try {
     const text = await Bun.file(`${directory}/AGENTS.md`).text();
     return text.length > 0 ? text : null;
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Validate 3-tier model configuration in opencode.json.
+ * Warns if Sisyphus/Lyra/Hephaestus agents don't have model fields set.
+ * Returns null on success, or a warning string listing the missing tiers.
+ */
+async function checkThreeTierConfig(): Promise<string | null> {
+  try {
+    const raw = await Bun.file(OPENCODE_CONFIG_PATH).text();
+    const config = JSON.parse(raw);
+    const agents = (config?.agent ?? {}) as Record<string, { model?: string } | undefined>;
+    const globalModel = config?.model;
+    const missing = TIER_AGENTS.filter((name) => {
+      const agent = agents[name];
+      return !agent || (!agent.model && !globalModel);
+    });
+    if (missing.length === 0) return null;
+    return (
+      `\n[3-tier config warning] Agents without explicit model: ${missing.join(", ")}. ` +
+      `Add a "model" field to each in opencode.json (e.g., "anthropic/claude-opus-4" for high).`
+    );
   } catch {
     return null;
   }
@@ -74,6 +102,11 @@ export const OrchestratorPlugin: Plugin = async (ctx) => {
         injections.push(
           `[项目级 AGENTS.md]\n${projectAgents}\n[end AGENTS.md]`,
         );
+      }
+
+      const tierWarning = await checkThreeTierConfig();
+      if (tierWarning) {
+        injections.push(tierWarning);
       }
 
       if (injections.length > 0) {

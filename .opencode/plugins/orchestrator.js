@@ -1,6 +1,8 @@
 // @bun
 // src/orchestrator.ts
 var KARPATHY_PATH = `${process.env.HOME}/.config/opencode/skills/karpathy-guidelines/SKILL.md`;
+var OPENCODE_CONFIG_PATH = `${process.env.HOME}/.config/opencode/opencode.json`;
+var TIER_AGENTS = ["sisyphus", "lyra", "hephaestus"];
 var karpathyContent = null;
 async function loadKarpathy() {
   if (karpathyContent !== null)
@@ -21,6 +23,24 @@ async function loadProjectAgents(directory) {
     return null;
   }
 }
+async function checkThreeTierConfig() {
+  try {
+    const raw = await Bun.file(OPENCODE_CONFIG_PATH).text();
+    const config = JSON.parse(raw);
+    const agents = config?.agent ?? {};
+    const globalModel = config?.model;
+    const missing = TIER_AGENTS.filter((name) => {
+      const agent = agents[name];
+      return !agent || !agent.model && !globalModel;
+    });
+    if (missing.length === 0)
+      return null;
+    return `
+[3-tier config warning] Agents without explicit model: ${missing.join(", ")}. ` + `Add a "model" field to each in opencode.json (e.g., "anthropic/claude-opus-4" for high).`;
+  } catch {
+    return null;
+  }
+}
 var OrchestratorPlugin = async (ctx) => {
   return {
     "experimental.chat.system.transform": async (_input, output) => {
@@ -36,6 +56,10 @@ ${karpathy}
         injections.push(`[\u9879\u76EE\u7EA7 AGENTS.md]
 ${projectAgents}
 [end AGENTS.md]`);
+      }
+      const tierWarning = await checkThreeTierConfig();
+      if (tierWarning) {
+        injections.push(tierWarning);
       }
       if (injections.length > 0) {
         output.system = output.system || [];
