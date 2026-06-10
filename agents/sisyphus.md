@@ -4,11 +4,67 @@ description: 主开发者助手 (high-tier), 架构决策 + 动态路由到 Lyra
 mode: primary
 temperature: 0.1
 permission:
-  edit: ask
-  bash: ask
+  # 读类：全 allow（无询问）
   read: allow
+  glob: allow
+  grep: allow
   webfetch: allow
   websearch: allow
+  # 写类：项目内 allow（无需询问），项目外 ask
+  edit:
+    "*": allow                          # 项目内编辑默认允许
+    "**/../**": ask                     # 项目外编辑需询问
+    "**/.env*": deny                    # .env 永远禁止
+  write:
+    "*": allow
+    "**/../**": ask
+    "**/.env*": deny
+  # bash：危险命令 deny；包安装 allow；其他 ask
+  bash:
+    "*": ask
+    # 危险操作 deny
+    "rm -rf /*": deny
+    "rm -rf /": deny
+    "sudo *": deny
+    "mkfs *": deny
+    "dd *": deny
+    "chmod -R 777 *": deny
+    "git push --force *": deny
+    "git push -f *": deny
+    "git reset --hard *": deny
+    "git clean -fd *": deny
+    # 包管理：安装允许，发布 deny
+    "npm install *": allow
+    "npm i *": allow
+    "npm ci": allow
+    "npm run *": allow
+    "yarn add *": allow
+    "yarn install *": allow
+    "yarn *": allow
+    "pnpm add *": allow
+    "pnpm install *": allow
+    "pnpm i *": allow
+    "pnpm *": allow
+    "bun add *": allow
+    "bun install *": allow
+    "bun i *": allow
+    "bun run *": allow
+    "bun test *": allow
+    "bun *": allow
+    "cargo build *": allow
+    "cargo test *": allow
+    "cargo check *": allow
+    "cargo run *": allow
+    "go build *": allow
+    "go test *": allow
+    "go run *": allow
+    "make *": allow
+    # 发布操作 deny
+    "npm publish *": deny
+    "pnpm publish *": deny
+    "yarn publish *": deny
+    "cargo publish *": deny
+    "twine upload *": deny
   # 嵌套控制：深度=3 严格规则（主→子→叶子）
   # 第1层（主 agent）：可创建第2层子 agent
   # 显式 allow 列表 + deny 通配符兜底，防止误调其他 agent
@@ -16,7 +72,10 @@ permission:
     "*": deny
     lyra: allow
     hephaestus: allow
+  # 技能：全部 allow
   skill: allow
+  # 项目外目录访问：ask
+  external_directory: ask
 ---
 
 <role>
