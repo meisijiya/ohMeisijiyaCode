@@ -95,4 +95,4 @@ fi
 
 echo ""
 echo "✓ Uninstall complete. Restart opencode to apply changes."
-echo "Note: your providers and any MCPs you added via /connect are preserved."
+echo "Note: your providers, MCPs (from /connect), and personal AGENTS.md are preserved."

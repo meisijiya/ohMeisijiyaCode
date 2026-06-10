@@ -74,6 +74,24 @@ copy_file_if_exists \
   "${REPO_DIR}/.opencode/plugins/orchestrator.js" \
   "${TARGET_DIR}/plugins"
 
+# Set up global AGENTS.md (personal preferences) — only if user doesn't have one
+# We do NOT overwrite — protect existing personal config.
+# The template has placeholders like {{SYSTEM_INFO}} that the user fills in.
+GLOBAL_AGENTS="${TARGET_DIR}/AGENTS.md"
+TEMPLATE_AGENTS="${REPO_DIR}/templates/AGENTS.md"
+if [[ -f "${TEMPLATE_AGENTS}" ]]; then
+  if [[ -f "${GLOBAL_AGENTS}" ]]; then
+    echo "AGENTS.md: already exists at ${GLOBAL_AGENTS} (skipped — not overwriting personal config)"
+  else
+    cp -v "${TEMPLATE_AGENTS}" "${GLOBAL_AGENTS}"
+    echo "AGENTS.md: installed template → ${GLOBAL_AGENTS}"
+    echo "  ⚠️  IMPORTANT: Edit the file and replace the {{...}} placeholders with your own values!"
+    echo "  - {{SYSTEM_INFO}}           → your OS (e.g., WSL2 Ubuntu 24.04, macOS Sonoma)"
+    echo "  - {{CODING_STYLE_NOTE}}     → your preferred code commenting style"
+    echo "  - {{EMOJI_USAGE_NOTE}}      → your emoji usage preference"
+  fi
+fi
+
 # Auto-register the plugin in opencode.json (if it exists and isn't already there)
 # This is the equivalent of `/connect` for plugins — it reuses whatever the user
 # already has in their opencode.json rather than re-declaring providers/MCPs.
@@ -178,3 +196,7 @@ else
 fi
 echo "  Plugins:"
 list_dir "${TARGET_DIR}/plugins" | sed 's/^/  /'
+echo "  AGENTS.md (global):"
+if [[ -f "${GLOBAL_AGENTS}" ]]; then
+  echo "    $(basename "${GLOBAL_AGENTS}")  ← $(wc -l < "${GLOBAL_AGENTS}" | tr -d ' ') lines"
+fi

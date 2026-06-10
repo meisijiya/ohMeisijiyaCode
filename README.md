@@ -22,9 +22,26 @@ bash install.sh
 | **6 skills** | karpathy-guidelines / openspec-integration / grill-with-docs / diagnose / to-issues / mmx-cli-usage |
 | **2 tools** | `hashline-edit.js` / `task-dispatch.js` → `~/.config/opencode/tools/` |
 | **1 plugin** | `orchestrator.js` 自动注册到 `opencode.json` 的 `plugin` 数组 |
+| **AGENTS.md 模板** | 仅在你**没有**全局 `~/.config/opencode/AGENTS.md` 时拷贝模板（**不覆盖**已有个人配置） |
 | **3 CLIs** | `mmx` / `ctx7` / `playwright-cli` — 通过 bash 调用，token 高效（不塞整页 DOM 进上下文） |
 
 > 所有操作**幂等**——重复运行不会重复注册。
+
+### ⚠️ AGENTS.md 模板首次安装后必改
+
+install.sh 会在 `~/.config/opencode/AGENTS.md` **不存在**时拷贝 `templates/AGENTS.md` 模板。**模板里有 3 个占位符**（每个用户的系统不一样）需要你手动改：
+
+```bash
+nano ~/.config/opencode/AGENTS.md
+```
+
+| 占位符 | 含义 | 你的实际值 |
+|--------|------|----------|
+| `{{SYSTEM_INFO}}` | 你的操作系统 | WSL2 Ubuntu 24.04 / macOS Sonoma / Windows 11 / ... |
+| `{{CODING_STYLE_NOTE}}` | 代码注释风格 | "添加函数级注释" / "只在复杂逻辑处注释" / ... |
+| `{{EMOJI_USAGE_NOTE}}` | Emoji 使用偏好 | "配合使用 Emoji" / "只在标题用" / "不用" / ... |
+
+> **已有 AGENTS.md**？install.sh 不会覆盖你的个人配置——保护你已有的全局偏好设置。
 
 卸载：
 
@@ -452,6 +469,8 @@ myOpenCodeWithMEeee/
 ├── docs/                   # 设计文档
 │   ├── 2026-06-10-1plus1plus1-agent-system-design.md
 │   └── 2026-06-10-v2-migration-plan.md
+├── templates/              # 配置模板
+│   └── AGENTS.md           # 全局 AGENTS.md 模板（首次安装时拷贝，不覆盖已有）
 ├── install.sh              # 一键安装（幂等）
 ├── uninstall.sh            # 一键卸载
 ├── CHANGELOG.md            # 变更日志
