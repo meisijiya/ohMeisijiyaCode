@@ -87,6 +87,33 @@ ls ~/.cache/opencode/packages/  # 确认 Superpowers 已安装
 openspec --version              # 确认 openspec CLI 可用（可选）
 ```
 
+### 4. RTK（强烈推荐——省 60-90% Token）
+
+[RTK](https://github.com/rtk-ai/rtk) 是一个 CLI 代理，会自动把 `git status`/`ls`/`grep`/`cat` 等常见命令的输出压缩后再送入 LLM 上下文。单个 Rust 二进制，零依赖，<10ms 开销。
+
+**效果**（30 分钟 session）：~118K tokens → ~24K tokens（**-80%**）
+
+```bash
+# 安装 RTK
+brew install rtk
+# 或者: curl -fsSL https://raw.githubusercontent.com/rtk-ai/rtk/refs/heads/master/install.sh | sh
+
+# 为 opencode 初始化（安装 hook + RTK.md 指导）
+rtk init -g --opencode
+
+# 验证
+rtk --version   # rtk 0.x
+rtk gain        # 查看 token 节省统计
+```
+
+初始化后，Agent 的 bash 命令会被自动重写：
+- `git status` → `rtk git status`（~200 tokens 变 ~40）
+- `grep "pattern"` → `rtk grep "pattern"`（分组输出）
+- `cargo test` → `rtk test cargo test`（仅显示失败，~2000 tokens 变 ~200）
+- `ls -la` → `rtk ls`（目录树，~800 tokens 变 ~150）
+
+> RTK 是本机级的，**不影响其他用户**——每个人的 Agent 独立受益。
+
 ### ⚠️ 关于 mattpocock/skills
 
 我们的 `grill-with-docs`、`diagnose`、`to-issues` 是从 [mattpocock/skills](https://github.com/mattpocock/skills) **原样导入**的（verbatim import）——只取了项目实际需要的 3 个，不是全量 11 个。**不要**另外跑 mattpocock 的官方 setup 脚本，否则同名 skill 会冲突，opencode 按文件系统遍历顺序去重，结果不可预测。
