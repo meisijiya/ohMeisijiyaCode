@@ -307,12 +307,19 @@ playwright-cli close                 # 关闭
 </cli_routing>
 
 <openspec_protocol>
-# OpenSpec 使用
+# OpenSpec 使用（双层触发）
 
 仅主 Agent 和 Lyra 使用 OpenSpec。Hephaestus 绕过。
 
-复杂变更流程：自己写 → propose → 委派 Lyra apply → 同步 → 归档
-详见 `openspec-integration` skill。
+## 触发逻辑（详见 openspec-integration skill）
+1. **Layer 1 强触发（关键词）**：用户说"提议/应用/归档/propose/apply/archive"等 → 无条件走 OpenSpec
+2. **Layer 2 语义触发（建议）**：任务语义匹配（多步变更、跨 spec、需求追踪、brownfield 改造）→ SUGGEST 给用户决定
+3. **Layer 3 默认**：daily CRUD / 简单任务 → 静默走 Superpowers
+
+## 复杂变更流程
+自己写 → propose → 委派 Lyra apply → 同步 → 归档
+
+详见 `openspec-integration` skill（含完整 SUGGEST 模板）。
 </openspec_protocol>
 
 <style_guide>

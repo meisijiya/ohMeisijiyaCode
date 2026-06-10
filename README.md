@@ -183,7 +183,7 @@ After `bash install.sh`, these skills are mirrored to `~/.config/opencode/skills
 | Skill | Type | Trigger |
 |-------|------|---------|
 | `karpathy-guidelines` | Self-built (4 karpathy principles) | Auto-injected on every LLM call by orchestrator |
-| `openspec-integration` | Self-built (routing bridge) | User mentions OpenSpec keywords |
+| `openspec-integration` | Self-built (routing bridge) | Two-layer trigger: (1) keyword OR (2) semantic intent (multi-step change / cross-spec) |
 | `grill-with-docs` | Imported from mattpocock/skills | Adversarial questioning of plans |
 | `diagnose` | Imported from mattpocock/skills | Hard bugs, performance regressions |
 | `to-issues` | Imported from mattpocock/skills | Break plan into independent issues |
@@ -412,6 +412,38 @@ bash install.sh   # Re-mirror to ~/.config/opencode/
 | `/opsx:archive` | Archive completed change | Sisyphus |
 
 **Hephaestus bypasses OpenSpec entirely** — CRUD doesn't need specs.
+
+### OpenSpec Two-Layer Trigger
+
+The `openspec-integration` skill uses a **two-layer trigger** to balance accuracy vs user-friendliness:
+
+| Layer | Type | Trigger | Behavior |
+|-------|------|---------|----------|
+| **Layer 1** | Strong (keyword) | User says `propose/explore/apply/sync/archive/提议/应用/归档` | **Always** OpenSpec (no questions) |
+| **Layer 2** | Semantic (suggest) | Task involves multi-step change / cross-spec impact / requirement tracking / brownfield | **SUGGEST** OpenSpec + ask user |
+| **Layer 3** | Default | None of the above | Superpowers (no OpenSpec) |
+
+**Semantic signals that suggest OpenSpec**:
+- Multi-step change with cross-spec impact (e.g., "重构 auth + 改 user model + 改 API")
+- Cross-spec influence query (e.g., "改 X 会影响 Y 吗？")
+- Requirement change tracking (e.g., "这个 spec 改了哪些 task？")
+- Brownfield legacy code modifications
+- Audit / review (e.g., "上个月做的 X 在哪？")
+- Multiple parallel changes
+- New project initialization
+
+**SUGGEST template** (Sisyphus says this when Layer 2 matches):
+> "This task looks like [multi-step change / cross-spec / ...] — OpenSpec handles this well.
+> Go OpenSpec (write proposal.md first) or Superpowers (brainstorming → plans)?
+> - OpenSpec: I'll create `openspec/changes/X/` with proposal.md
+> - Superpowers: I'll go straight to brainstorming + writing-plans"
+
+**Anti-patterns** (don't do these):
+- ❌ "新功能" → auto OpenSpec (too aggressive, false positives)
+- ❌ "改" → ask "要不要 OpenSpec" (too noisy, breaks flow)
+- ✅ keyword → unconditionally OpenSpec
+- ✅ semantic → SUGGEST once with reason
+- ✅ default → silently Superpowers
 
 ### Foundation: Superpowers (14 skills, used in full)
 

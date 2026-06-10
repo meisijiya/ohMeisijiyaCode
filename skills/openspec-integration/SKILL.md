@@ -1,10 +1,10 @@
 ---
 name: openspec-integration
-description: Routing bridge that clarifies when to use OpenSpec workflows (propose/explore/apply/sync/archive) vs Superpowers (brainstorming/writing-plans/review/finish-branch). Load when the user mentions "propose / explore / apply / sync / archive" — these are OpenSpec's commands. Complements but does NOT replace Superpowers.
+description: Routing bridge that clarifies when to use OpenSpec workflows (propose/explore/apply/sync/archive) vs Superpowers (brainstorming/writing-plans/review/finish-branch). Use a two-layer trigger: (1) STRONG — user explicitly says "propose/提议/应用/归档/etc." → always OpenSpec. (2) SEMANTIC — task semantically matches multi-step spec-driven change criteria → SUGGEST OpenSpec and ask user. Default to Superpowers if neither matches. Complements but does NOT replace Superpowers.
 license: MIT
 metadata:
   purpose: "Boundary documentation between OpenSpec and Superpowers"
-  triggeredBy: "User mentions propose/explore/apply/sync/archive, OR wants to track a multi-step spec-driven change"
+  triggeredBy: "Two-layer: (1) keyword (propose/explore/apply/sync/archive/提议/探索/应用/同步/归档) → strong trigger. (2) semantic intent (multi-step change, cross-spec impact, change tracking, brownfield legacy) → suggest and ask user"
 ---
 
 # OpenSpec ↔ Superpowers 路由桥
@@ -24,19 +24,68 @@ OpenSpec **补充** Superpowers 没有的能力：
 - 需求变更追踪（哪个 spec 改了、影响哪些 task）
 - 项目级规约中心（`openspec/specs/<domain>/spec.md`）
 
-## 🎯 触发条件
+## 🎯 触发条件（双层）
 
-仅当用户**明确说以下关键词**时加载此 skill：
+OpenSpec 触发采用**双层机制**——避免误触的同时减少用户学习成本。
 
-| 关键词 | OpenSpec 命令 | 何时用 |
-|--------|--------------|--------|
+### Layer 1: 强触发（关键词）—— 无条件走 OpenSpec
+
+用户**明确说**以下关键词时，**直接走 OpenSpec**，不再询问：
+
+| 关键词（中/英） | OpenSpec 命令 | 何时用 |
+|----------------|--------------|--------|
 | "提议 X / propose X" | `/opsx:propose` | 创建一个新 change 提案 |
 | "探索 X / explore X" | `/opsx:explore` | 自由探索（不落 artifact） |
 | "应用 X / apply X" | `/opsx:apply` | 实施 tasks.md |
 | "同步规约 / sync specs" | `/opsx:sync` | 智能合并 delta 到主 spec |
 | "归档 X / archive X" | `/opsx:archive` | 归档完成的 change |
+| "change" / "变更" / "提案" / "规约" | 任意 OpenSpec 操作 | 涉及 spec 追踪 |
 
-如果用户没明确说这些词，**默认走 Superpowers**。
+### Layer 2: 语义触发（建议）—— SUGGEST 并询问用户
+
+**任务语义匹配**以下任一条件时，**SUGGEST** OpenSpec 给用户，让用户决定：
+
+| 语义信号 | 例子 | 触发的 OpenSpec 价值 |
+|---------|------|-------------------|
+| **多步变更** | "重构 auth + 改 user model + 改 API" | 跨多 spec 的 delta 合并 |
+| **跨 spec 影响** | "改 X 会影响 Y 吗？" | change DAG 追踪 |
+| **需求变更追踪** | "这个 spec 改了哪些 task？" | 需求 ↔ 实现映射 |
+| **brownfield 改造** | "在老项目里加新功能" | OpenSpec 对 brownfield 友好 |
+| **audit / 复盘** | "上个月做的 X 在哪？" | archive 查询 |
+| **多 change 并行** | "同时做 2 个独立 change" | 多个 openspec/changes/ 文件夹 |
+| **新项目初始化** | "我想建个新项目" | `openspec init` + 初始 spec |
+
+**SUGGEST 模板**（直接告诉用户）：
+> "这个任务看起来涉及[多步变更/跨 spec 影响/...]——OpenSpec 比较擅长这个。
+> 要走 OpenSpec（先写 proposal.md）还是 Superpowers（直接 brainstorming）？
+> - 走 OpenSpec: 我会创建 `openspec/changes/X/` 并写 proposal.md
+> - 走 Superpowers: 我会直接 brainstorming + writing-plans"
+
+### Layer 3: 默认（不触发）—— 走 Superpowers
+
+如果既没关键词、也没语义匹配，**默认走 Superpowers**——OpenSpec 价值不大，不强加。
+
+例子（不触发）：
+- "修改 README 一行错别字" → Superpowers 直接改
+- "跑一下测试" → Superpowers 直接 bash
+- "看看 X 文件内容" → Superpowers 直接 read
+
+### 双层触发的优势
+
+- **减少学习成本**：用户不用背 5 个 OpenSpec 命令
+- **避免误触**：daily CRUD 不会被 OpenSpec "绑架"
+- **可预测**：关键词触发 100% 准确；语义触发有兜底问句
+
+### 反模式（不要做）
+
+| 反模式 | 后果 |
+|--------|------|
+| ❌ 看到 "新功能" 就自动走 OpenSpec | 误触率高，用户困惑 |
+| ❌ 看到 "改" 就问"要不要 OpenSpec" | 噪音大，破坏流畅性 |
+| ❌ 忽略关键词，强行走 Superpowers | 用户明确说"提议"你没走，他崩溃 |
+| ✅ 关键词 → 直接走，无视其他 | 强触发要无条件 |
+| ✅ 语义 → SUGGEST 一次，附理由 | 给用户决策权 |
+| ✅ 默认 → 静默走 Superpowers | 不打扰 |
 
 ## 📂 项目级结构
 
@@ -88,14 +137,15 @@ myOpenCodeWithMEeee/
    → Optional: 调 Superpowers finishing-a-development-branch
 ```
 
-## 🛡️ 不混用原则
+## 🛡️ 不混用原则（双层触发版）
 
 | 用户说 | 走哪个 |
 |--------|--------|
+| "提议/propose/explore/apply/sync/archive" | **OpenSpec 强触发**（Layer 1） |
+| 任务语义匹配（多步/跨 spec/审计/...） | **OpenSpec SUGGEST** + 询问用户（Layer 2） |
 | "做 brainstorming" / "按规范流程" | Superpowers |
-| "做 OpenSpec" / "提议 change" / "归档" | OpenSpec |
 | "按 [plan] 实施" | Superpowers subagent-driven-development |
-| 默认 | Superpowers（除非显式提到 OpenSpec 关键词） |
+| 默认（无关键词 + 无语义） | Superpowers |
 
 ## ⚠️ 失败处理（优雅降级策略）
 

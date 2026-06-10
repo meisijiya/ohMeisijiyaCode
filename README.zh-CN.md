@@ -179,7 +179,7 @@ rtk gain        # 查看 token 节省统计
 | Skill | 类型 | 触发 |
 |-------|------|------|
 | `karpathy-guidelines` | 自研（4 大 karpathy 原则） | orchestrator 自动注入每次 LLM 调用 |
-| `openspec-integration` | 自研（OpenSpec ↔ Superpowers 路由桥） | 用户提到 OpenSpec 关键词 |
+| `openspec-integration` | 自研（OpenSpec ↔ Superpowers 路由桥） | 双层触发：关键词 OR 语义意图（多步/跨 spec） |
 | `grill-with-docs` | 从 mattpocock/skills 导入 | 对抗性质询计划 |
 | `diagnose` | 从 mattpocock/skills 导入 | 硬 bug、性能回归 |
 | `to-issues` | 从 mattpocock/skills 导入 | 把 plan 拆成独立 issues |
@@ -408,6 +408,38 @@ bash install.sh   # 重新镜像到 ~/.config/opencode/
 | `/opsx:archive` | 归档完成的 change | Sisyphus |
 
 **Hephaestus 全部绕过 OpenSpec**——CRUD 不需要规约。
+
+### OpenSpec 双层触发
+
+`openspec-integration` skill 用**双层触发**平衡准确性和易用性：
+
+| 层 | 类型 | 触发 | 行为 |
+|----|------|------|------|
+| **Layer 1** | 强（关键词） | 用户说 `propose/explore/apply/sync/archive/提议/应用/归档` | **强制**走 OpenSpec（不问） |
+| **Layer 2** | 弱（语义建议） | 任务涉及多步变更/跨 spec/需求追踪/brownfield 改造 | **SUGGEST** OpenSpec + 询问用户 |
+| **Layer 3** | 默认 | 都没匹配 | Superpowers（不引入 OpenSpec） |
+
+**语义建议的信号**（匹配任一则 SUGGEST）：
+- 多步变更涉及跨 spec 影响（例："重构 auth + 改 user model + 改 API"）
+- 跨 spec 影响查询（例："改 X 会影响 Y 吗？"）
+- 需求变更追踪（例："这个 spec 改了哪些 task？"）
+- brownfield 老项目改造
+- 审计/复盘（例："上个月做的 X 在哪？"）
+- 多个并行 change
+- 新项目初始化
+
+**SUGGEST 模板**（Sisyphus 在 Layer 2 匹配时说）：
+> "这个任务看起来涉及[多步变更/跨 spec/...]——OpenSpec 比较擅长这个。
+> 走 OpenSpec（先写 proposal.md）还是 Superpowers（直接 brainstorming）？
+> - 走 OpenSpec: 我会创建 `openspec/changes/X/` 并写 proposal.md
+> - 走 Superpowers: 我会直接 brainstorming + writing-plans"
+
+**反模式**（不要做）：
+- ❌ "新功能" → 自动 OpenSpec（太激进，误触率高）
+- ❌ "改" → 问"要不要 OpenSpec"（太吵，破坏流畅性）
+- ✅ 关键词 → 无条件 OpenSpec
+- ✅ 语义 → SUGGEST 一次，附理由
+- ✅ 默认 → 静默走 Superpowers
 
 ### 底座：Superpowers（14 skills，全量使用）
 
