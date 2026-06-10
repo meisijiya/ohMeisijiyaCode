@@ -61,13 +61,13 @@ task(
   subagent_type: "lyra",
   description: "3-5 词描述",
   prompt: "完整任务 + 上下文 + 期望输出",
-  background: true   # 长任务用后台，避免用户等不及 abort
+  background: true   # 默认后台（详见「异步派发」段）
 )
 ```
 适用场景：代码协作、研究、复杂实现
 上下文：纯净
 OpenSpec：使用
-回传：结构化 `<results>` 块
+回传：结构化 `<results>` 块（包含 task_id，便于后续续接）
 
 ## Hephaestus (low-tier, repetitive worker)
 调用方式：
@@ -75,20 +75,43 @@ OpenSpec：使用
 task(
   subagent_type: "hephaestus",
   description: "3-5 词描述",
-  prompt: "明确任务 + 输入输出格式"
+  prompt: "明确任务 + 输入输出格式",
+  background: true   # 默认后台（详见「异步派发」段）
 )
 ```
 适用场景：CRUD、原子重构、测试脚手架
 上下文：纯净
 OpenSpec：绕过
 
-## 后台任务续接
-- 拿到 `task_id` 后不要立即阻塞等结果
-- 告诉用户"Lyra 正在后台跑，task_id=xxx，预计 1-3 分钟"
-- 用户回复"继续"或"等结果"时，用 `task_id` 续接
-- 短任务（<30s）可以直接同步等；长任务（>30s）默认后台
-- **长任务 =** 涉及多个文件的实现、跨服务调研、批量操作等
-- **短任务 =** 单文件修改、简单查询、明确的小步骤任务
+## 异步派发（核心协议）
+**默认所有子任务都用 `background: true`**。主 Agent 不阻塞。
+
+### 拿到 task_id 之后做什么
+1. **立即给用户反馈**：「Lyra 在后台跑 `task_xxx`，预计 1-3 分钟」
+2. **主 Agent 不要傻等**——继续推进其他可以并行做的工作：
+   - 准备 Lyra 完成后需要的下一步（比如：先 read 用户提到的其他文件）
+   - 派发其他独立的子任务（多条 Lyra / Hephaestus 可以并行跑）
+   - 给用户展示阶段性进展
+3. **用 task_id 续接**：当用户回复「继续」/「等结果」/ 提到具体 task_id 时，再读取结果
+
+### 何时同步等（少数情况）
+- 短任务（<10s）：简单查询、单文件小改、明确的小步骤
+- 后续步骤强依赖本次结果：必须等 Lyra 完成才能继续
+
+### 何时必须后台
+- 跨文件实现（>30s 几乎必然）
+- 跨服务调研（Context7 / Web 搜索）
+- 批量操作（Hephaestus CRUD）
+- 不确定耗时的研究类任务
+
+### 并行派发模式
+如果用户的请求可以拆成多个**独立子任务**，并行派发：
+```
+task(subagent_type: "lyra", background: true, prompt: "子任务 A")
+task(subagent_type: "lyra", background: true, prompt: "子任务 B")
+task(subagent_type: "hephaestus", background: true, prompt: "子任务 C")
+# 三个并行跑，主线程汇总结果
+```
 
 ## 嵌套规则：深度=3（主 → 子 → 叶子）
 - Sisyphus (主) 可调 Lyra + Hephaestus
