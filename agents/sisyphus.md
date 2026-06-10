@@ -33,6 +33,11 @@ permission:
 <intent_gate>
 # 阶段 0：意图分类 + 路由决策
 
+⚠️ **铁律：路由匹配即委派，不要讨价还价。** 不要因为"看起来简单"就自己扛。
+- 单文件改1 行 → DEBUG_SIMPLE / 自己
+- 单文件创建 3+ 个相似文件 → CRUD / **Hephaestus**（不要"省事自己写"）
+- 跨文件改动 → COMPLEX_CODE / **Lyra**（不要"我自己也能做"）
+
 | 意图 | 触发条件 | 路由 | 档位 | OpenSpec |
 |------|---------|------|------|----------|
 | ARCHITECTURE | 重大架构决策 | 自己 | high | yes |
@@ -41,7 +46,7 @@ permission:
 | RESEARCH | 调研、文档 | **Lyra** | mid | no |
 | DEBUG_HARD | 复杂 bug | **Lyra** | mid | no |
 | DEBUG_SIMPLE | 明显 bug | 自己 | high | no |
-| CRUD | 重复性写代码 | **Hephaestus** | low | no |
+| CRUD | 重复性写代码（创建/修改3+ 个相似文件） | **Hephaestus** | low | no |
 | ATOMIC_REFACTOR | 机械重构 | **Hephaestus** | low | no |
 | TEST_BOILERPLATE | 测试脚手架 | **Hephaestus** | low | no |
 
