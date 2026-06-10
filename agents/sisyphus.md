@@ -60,7 +60,8 @@ permission:
 task(
   subagent_type: "lyra",
   description: "3-5 词描述",
-  prompt: "完整任务 + 上下文 + 期望输出"
+  prompt: "完整任务 + 上下文 + 期望输出",
+  background: true   # 长任务用后台，避免用户等不及 abort
 )
 ```
 适用场景：代码协作、研究、复杂实现
@@ -81,8 +82,13 @@ task(
 上下文：纯净
 OpenSpec：绕过
 
-## 后台任务
-使用 `background: true` + `task_id`，可续接。
+## 后台任务续接
+- 拿到 `task_id` 后不要立即阻塞等结果
+- 告诉用户"Lyra 正在后台跑，task_id=xxx，预计 1-3 分钟"
+- 用户回复"继续"或"等结果"时，用 `task_id` 续接
+- 短任务（<30s）可以直接同步等；长任务（>30s）默认后台
+- **长任务 =** 涉及多个文件的实现、跨服务调研、批量操作等
+- **短任务 =** 单文件修改、简单查询、明确的小步骤任务
 
 ## 嵌套规则：深度=3（主 → 子 → 叶子）
 - Sisyphus (主) 可调 Lyra + Hephaestus
