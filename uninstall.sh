@@ -43,10 +43,11 @@ rm_target "agents/lyra.md"
 rm_target "agents/hephaestus.md"
 
 # Our specific skills
-rm_target_dir "skills/karpathy-guidelines"
-rm_target_dir "skills/openspec-integration"
-rm_target_dir "skills/grill-with-docs"
 rm_target_dir "skills/diagnose"
+rm_target_dir "skills/grill-with-docs"
+rm_target_dir "skills/karpathy-guidelines"
+rm_target_dir "skills/mmx-cli-usage"
+rm_target_dir "skills/openspec-integration"
 rm_target_dir "skills/to-issues"
 
 # Our specific tools (only those we created)
@@ -88,46 +89,10 @@ print(f"unregistered: {plugin_entry}")
 PY_EOF
   )"
   echo "opencode.json: ${DEREGISTER_OUTPUT}"
-
-  # Unregister Context7 + Playwright MCPs (only if we added them)
-  MCP_DEREG_OUTPUT="$(python3 - "${OPENCODE_CONFIG}" <<'PY_EOF' 2>&1
-import json, sys
-
-config_path = sys.argv[1]
-try:
-    with open(config_path, "r", encoding="utf-8") as f:
-        config = json.load(f)
-except (json.JSONDecodeError, OSError) as e:
-    print(f"WARN: could not read {config_path}: {e}")
-    sys.exit(0)
-
-mcps = config.get("mcp", {})
-if not isinstance(mcps, dict):
-    print(f"WARN: 'mcp' field is not a dict; skipping")
-    sys.exit(0)
-
-removed = []
-for name in ["Context7", "Playwright"]:
-    if name in mcps:
-        del mcps[name]
-        removed.append(name)
-
-if removed:
-    config["mcp"] = mcps
-    with open(config_path, "w", encoding="utf-8") as f:
-        json.dump(config, f, indent=2, ensure_ascii=False)
-        f.write("\n")
-    for name in removed:
-        print(f"unregistered: mcp.{name}")
-else:
-    print("not-registered: mcp.Context7, mcp.Playwright")
-PY_EOF
-  )"
-  echo "opencode.json (MCPs): ${MCP_DEREG_OUTPUT}"
 else
   echo "opencode.json: not found (nothing to unregister)"
 fi
 
 echo ""
 echo "✓ Uninstall complete. Restart opencode to apply changes."
-echo "Note: providers/MCPs you added via /connect are preserved."
+echo "Note: your providers and any MCPs you added via /connect are preserved."

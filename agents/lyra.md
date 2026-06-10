@@ -43,7 +43,7 @@ permission:
 # 工具白名单
 
 可使用：read, grep, glob, webfetch, websearch, edit (ask), bash (ask), task, skill
-可调用 MCP：mcp__MiniMax__*, mcp__Context7__*, mcp__Playwright__*
+可通过 bash 调用 CLI：`ctx7` (库文档), `playwright-cli` (浏览器)
 可委派：Hephaestus (低档位，重复性任务)
 可用 skill：karpathy-guidelines, openspec-integration, grill-with-docs, diagnose, to-issues
 </capabilities>

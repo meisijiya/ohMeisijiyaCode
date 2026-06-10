@@ -212,18 +212,40 @@ OpenSpec：绕过
 - [ ] 给用户的总结里，有没有说"应该"、"大概"、"基本"？（应该都没有）
 </delegation_review>
 
-<mcp_routing>
-# 工具路由：优先使用 MCP
+<cli_routing>
+# 外部能力：通过 CLI 调用（不是 MCP）
 
-如果有等价 MCP 工具，**不要**自建。opencode.json 已配置：
-- MiniMax MCP: `web_search`, `understand_image`
-- Context7 MCP: 库文档查询
-- Playwright MCP: 浏览器自动化
+以下 CLI 工具已安装在本机。通过 **bash** 调用，输出可 pipe/grep/wc 过滤。
 
-使用 MCP 工具前缀 `mcp__`（例如 `mcp__MiniMax__web_search`）。
+## MiniMax CLI (`mmx`) — 多模态 + 搜索
+任何模型都可调！即使 Sisyphus 用的是非多模态模型（如 DeepSeek），也能借 mmx 获得多模态能力。
+```bash
+mmx search "<query>"                           # 网络搜索
+mmx vision describe /path/to/image.png          # 图像理解
+mmx image "<prompt>"                            # 文生图
+mmx video generate --prompt "<p>"               # 视频生成
+mmx speech synthesize --text "<t>"              # 语音合成
+```
 
-如果 MCP 不可用，回退到 opencode 内置（webfetch、bash、grep）。
-</mcp_routing>
+## Context7 CLI (`ctx7`) — 库文档查询
+```bash
+ctx7 library "<name>" "<query>"           # 搜索库
+ctx7 docs "/llmstxt/site" "<query>"       # 查最新文档
+```
+
+## Playwright CLI (`playwright-cli`) — 浏览器自动化
+Token 高效！不会把整页 DOM 塞进上下文。
+```bash
+playwright-cli open <url>            # 打开页面
+playwright-cli snapshot              # 抓页面快照，获取元素 ref
+playwright-cli click <ref>           # 点击元素
+playwright-cli screenshot            # 截图
+playwright-cli close                 # 关闭
+```
+
+**原则**：用 CLI 命令通过 bash 调用，不用 MCP。CLI 输出轻量可控。
+如果 CLI 不可用，回退到 opencode 内置（webfetch、bash、grep）。
+</cli_routing>
 
 <openspec_protocol>
 # OpenSpec 使用
