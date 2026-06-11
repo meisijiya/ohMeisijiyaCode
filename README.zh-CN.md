@@ -613,6 +613,26 @@ OpenSpec 是我们架构中**三层正交**之一。我们**不依赖**它，而
 
 > 需单独安装：`opencode plugin install superpowers`（详见[前置依赖](#3-openspec-cli可选需要规约驱动变更时)）。本项目**不**自带 Superpowers skill 文件。
 
+### 📖 领域 Skills 目录（仅指导，不自带安装）
+
+我们不自带领域 skill 的自动化安装。详见 [`skills-registry/`](skills-registry/) —— 指导性推荐目录：
+
+| 领域 | 文件 | 主要仓库 |
+|------|------|----------|
+| React/Next.js | [`skills-registry/frontend-react.md`](skills-registry/frontend-react.md) | vercel-labs/agent-skills, PatternsDev/skills |
+| Vue/Nuxt | [`skills-registry/frontend-vue.md`](skills-registry/frontend-vue.md) | vuejs-ai/skills, PatternsDev/skills |
+| UI/UX 设计 | [`skills-registry/frontend-design.md`](skills-registry/frontend-design.md) | nextlevelbuilder/ui-ux-pro-max, anthropics/skills |
+| Java/Spring Boot | [`skills-registry/backend-java.md`](skills-registry/backend-java.md) | antigravity-awesome-skills, Jeffallan/claude-skills |
+| Python/FastAPI/Django | [`skills-registry/backend-python.md`](skills-registry/backend-python.md) | Skill_Seekers, antigravity-awesome-skills |
+| SQL & NoSQL | [`skills-registry/database.md`](skills-registry/database.md) | supabase/agent-skills, antigravity-awesome-skills |
+| Docker/K8s/CI-CD | [`skills-registry/devops.md`](skills-registry/devops.md) | antigravity-awesome-skills |
+| 安全与认证 | [`skills-registry/security.md`](skills-registry/security.md) | trailofbits/skills, squirrelscan/skills |
+| E2E/性能测试 | [`skills-registry/testing.md`](skills-registry/testing.md) | browser-use, vercel-labs/agent-browser |
+
+安装命令：`npx skills add <owner/repo> --skill <name> -a opencode -g -y`
+
+这些是**领域知识型** skill，与我们 11 个**流程型** skill（karpathy、diagnose、tdd 等）互补，无重叠。
+
 ---
 
 ## 📦 组件清单

@@ -621,6 +621,26 @@ The **full workflow foundation** of this project. Superpowers provides end-to-en
 
 > Requires separate install: `opencode plugin install superpowers` (see [Prerequisites](#3-openspec-clioptional--only-for-spec-driven-changes)). This project **does not** ship Superpowers skill files.
 
+### 📖 Domain Skills Registry (Guidance-Only)
+
+We don't auto-install project-level domain skills. See [`skills-registry/`](skills-registry/) for a curated recommendation index covering:
+
+| Domain | File | Key Repos |
+|--------|------|-----------|
+| React/Next.js | [`skills-registry/frontend-react.md`](skills-registry/frontend-react.md) | vercel-labs/agent-skills, PatternsDev/skills |
+| Vue/Nuxt | [`skills-registry/frontend-vue.md`](skills-registry/frontend-vue.md) | vuejs-ai/skills, PatternsDev/skills |
+| UI/UX design | [`skills-registry/frontend-design.md`](skills-registry/frontend-design.md) | nextlevelbuilder/ui-ux-pro-max, anthropics/skills |
+| Java/Spring Boot | [`skills-registry/backend-java.md`](skills-registry/backend-java.md) | antigravity-awesome-skills, Jeffallan/claude-skills |
+| Python/FastAPI/Django | [`skills-registry/backend-python.md`](skills-registry/backend-python.md) | Skill_Seekers, antigravity-awesome-skills |
+| SQL & NoSQL | [`skills-registry/database.md`](skills-registry/database.md) | supabase/agent-skills, antigravity-awesome-skills |
+| Docker/K8s/CI-CD | [`skills-registry/devops.md`](skills-registry/devops.md) | antigravity-awesome-skills |
+| Security & auth | [`skills-registry/security.md`](skills-registry/security.md) | trailofbits/skills, squirrelscan/skills |
+| E2E/performance | [`skills-registry/testing.md`](skills-registry/testing.md) | browser-use, vercel-labs/agent-browser |
+
+Install any with: `npx skills add <owner/repo> --skill <name> -a opencode -g -y`
+
+These skills are **domain knowledge** — they complement our 11 **process** skills (karpathy, diagnose, tdd, etc.) without overlap.
+
 ---
 
 ## 📦 Components
