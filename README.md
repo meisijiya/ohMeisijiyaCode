@@ -933,6 +933,49 @@ bash scripts/update-skills.sh --skill grill-with-docs
 
 > **Adding a new imported skill?** Add an entry to `skills/SOURCES.yaml` so it shows up in drift checks.
 
+### Recommended Skills (in `skills-registry/`)
+
+The 10 files in [`skills-registry/`](skills-registry/) recommend domain-specific skills for users to install themselves. These recommendations were curated from 3 primary sources:
+
+| Source | What it provides | Used in files |
+|--------|------------------|---------------|
+| 🇨🇳 [程序员鱼皮 — 40 Agent Skills 精选资源](https://www.cnblogs.com/yupi/p/19608327) | Curated picks across multiple domains (frontend, backend, AI, devops) | All 10 files |
+| 🇨🇳 [鱼皮 AI 导航 Skills 专区](https://ai.codefather.cn/skills) | Chinese skill marketplace, current Chinese-mainland picks | `frontend-react.md`, `backend-java.md`, `tools.md` |
+| 🇨🇳 [技术站 — Java 技术栈 Skills 全景指南](https://jishuzhan.net/article/2062777085067866114) | Java ecosystem deep-dive | `backend-java.md`, `database.md` |
+| 🇺🇸 [vercel-labs/skills](https://github.com/vercel-labs/skills) | The CLI itself + its `agent-skills` repo (frontend design) | All 10 files (as the installer) |
+| 🇹🇷 [yusufkaraaslan/Skill_Seekers](https://github.com/yusufkaraaslan/Skill_Seekers) | Generate skills from docs/repos/PDFs | `tools.md` |
+
+> **Each `skills-registry/<domain>.md` file** lists the specific skills with:
+> - Source repo (e.g., `vercel-labs/agent-skills`)
+> - Install command (`npx skills add <repo> --skill <name> -a opencode -g`)
+> - "Why it complements our system" rationale
+>
+> **Why not auto-track drift for these?** Because we don't install them — users do. Tracking would be premature. If a recommended skill goes dead, we just remove the entry from the file.
+
+### Real-World Maintenance Workflow
+
+```bash
+# Monthly: check if our 15 global skills have upstream updates
+bash scripts/update-skills.sh
+
+# If drift found, preview the changes
+bash scripts/update-skills.sh --dry-run
+
+# If happy with the diff, apply (verbatim skills only)
+bash scripts/update-skills.sh --apply
+
+# Verify no drift remains
+bash scripts/update-skills.sh  # should show 0 drift, exit 0
+
+# Commit the updates
+git add skills/ && git commit -m "chore(skills): sync N verbatim skills with upstream"
+```
+
+**Last run (this session)**:
+- Detected: 2 drifts (caveman, interview-me)
+- Applied: 2 verbatim updates
+- Re-checked: 0 drift, 11/11 verbatim up-to-date ✅
+
 ---
 
 ## 📁 Repository Structure

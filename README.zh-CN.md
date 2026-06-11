@@ -921,6 +921,49 @@ bash scripts/update-skills.sh --skill grill-with-docs
 
 > **新加导入的 skill？** 在 `skills/SOURCES.yaml` 加一条，下次 drift 检查就会扫描到。
 
+### 推荐 Skill（`skills-registry/` 目录）
+
+[`skills-registry/`](skills-registry/) 下 10 个文件推荐各领域专用 skill，供用户自助安装。这些推荐**精选自 3 个主要源**：
+
+| 源 | 提供内容 | 用于哪些文件 |
+|----|---------|-------------|
+| 🇨🇳 [程序员鱼皮 — 40 Agent Skills 精选资源](https://www.cnblogs.com/yupi/p/19608327) | 多领域精选（前端/后端/AI/运维）| 全部 10 个 |
+| 🇨🇳 [鱼皮 AI 导航 Skills 专区](https://ai.codefather.cn/skills) | 中文技能市场，国内访问友好 | `frontend-react.md`, `backend-java.md`, `tools.md` |
+| 🇨🇳 [技术站 — Java 技术栈 Skills 全景指南](https://jishuzhan.net/article/2062777085067866114) | Java 生态深度 | `backend-java.md`, `database.md` |
+| 🇺🇸 [vercel-labs/skills](https://github.com/vercel-labs/skills) | CLI 本身 + `agent-skills` 仓库（前端设计）| 全部 10 个（作为安装器）|
+| 🇹🇷 [yusufkaraaslan/Skill_Seekers](https://github.com/yusufkaraaslan/Skill_Seekers) | 从文档/repo/PDF 生成 skill | `tools.md` |
+
+> **每个 `skills-registry/<领域>.md` 文件** 列出具体 skill，含：
+> - 来源 repo（如 `vercel-labs/agent-skills`）
+> - 安装命令（`npx skills add <repo> --skill <name> -a opencode -g`）
+> - "为什么跟我们体系互补" 的说明
+>
+> **为什么这些不自动检查 drift？** 因为我们不装——用户自己装。如果某个推荐 skill 死了，从文件里删掉那条即可。
+
+### 实际维护工作流
+
+```bash
+# 每月：检查 15 个全局 skill 是否有上游更新
+bash scripts/update-skills.sh
+
+# 如果发现 drift，先预览会改什么
+bash scripts/update-skills.sh --dry-run
+
+# 如果 diff 满意，应用（只针对 verbatim skill）
+bash scripts/update-skills.sh --apply
+
+# 验证无 drift 残留
+bash scripts/update-skills.sh  # 应显示 0 drift，exit 0
+
+# 提交更新
+git add skills/ && git commit -m "chore(skills): sync N verbatim skills with upstream"
+```
+
+**本次会话最后运行**：
+- 检测到：2 个 drift（caveman, interview-me）
+- 已应用：2 个 verbatim 更新
+- 复查：0 drift，11/11 verbatim 全部最新 ✅
+
 ---
 
 ## 📁 仓库结构
