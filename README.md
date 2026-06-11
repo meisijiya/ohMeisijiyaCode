@@ -879,6 +879,62 @@ done
 
 ---
 
+## 🔄 Maintenance: Upstream Skill Sync
+
+> **11 of our 15 global skills come from upstream** (mattpocock/skills, addyosmani/agent-skills). We track every source in [`skills/SOURCES.yaml`](skills/SOURCES.yaml) and provide a check-and-update script.
+
+### Skill Provenance Summary
+
+| Type | Count | Update Strategy |
+|------|-------|-----------------|
+| **self** (no upstream) | 3 (karpathy, openspec, mmx-cli) | N/A |
+| **verbatim** (100% as-is) | 11 (mattpocock + addyosmani) | ✅ Auto-check + safe apply |
+| **reimpl** (lightweight) | 1 (source-driven-development) | ⚠️ Manual review required |
+
+### Check for Upstream Drift
+
+```bash
+# Default: check only (safe, doesn't modify anything)
+bash scripts/update-skills.sh
+
+# Preview what would change (without writing)
+bash scripts/update-skills.sh --dry-run
+
+# Apply all verbatim updates
+bash scripts/update-skills.sh --apply
+
+# Check a specific skill
+bash scripts/update-skills.sh --skill grill-with-docs
+```
+
+**Exit codes**:
+- `0` = all up-to-date
+- `1` = drift detected (check mode)
+- `2` = network/auth error
+
+### How It Works
+
+1. **Reads** `skills/SOURCES.yaml` (15 skills, each with source_repo + source_path)
+2. **Fetches** latest SKILL.md from each upstream via `api.github.com` (works around `raw.githubusercontent.com` timeouts)
+3. **Compares** SHA-256 of local + upstream content
+4. **Reports** drift (or applies with `--apply`)
+5. **Never** auto-updates reimpl skills (manual review required)
+
+### Registry Format
+
+```yaml
+- name: grill-with-docs
+  type: verbatim
+  source_repo: mattpocock/skills
+  source_path: skills/engineering/grill-with-docs/SKILL.md
+  imported_at: 2026-06-10
+  lines: 88
+```
+
+> **Adding a new imported skill?** Add an entry to `skills/SOURCES.yaml` so it shows up in drift checks.
+
+---
+
 ## 📁 Repository Structure
 
 ```

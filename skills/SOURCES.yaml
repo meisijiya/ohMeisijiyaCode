@@ -1,0 +1,154 @@
+# skills/SOURCES.yaml — Central registry for upstream tracking
+# ============================================================
+# Purpose: Document where each of our 15 global skills came from
+#          so we can detect drift and update them later.
+#
+# Update mechanism: bash scripts/update-skills.sh [--apply|--dry-run]
+#
+# Types:
+#   - self:      self-built, no upstream
+#   - verbatim:  imported 100% as-is from upstream (auto-update safe)
+#   - reimpl:    lightweight re-implementation (auto-update UNSAFE;
+#                manual review required before applying upstream)
+# ============================================================
+
+version: 1
+last_audit: 2026-06-11
+
+skills:
+
+  # ===== Self-built (3) =====
+  - name: karpathy-guidelines
+    type: self
+    note: "Sisyphus auto-injects this on every LLM call. Imported from multica-ai/andrej-karpathy-skills but customized for our 1+1+1 system."
+
+  - name: openspec-integration
+    type: self
+    note: "Custom routing bridge for OpenSpec. Two-layer trigger (keyword OR semantic) + 4-tier fallback."
+
+  - name: mmx-cli-usage
+    type: self
+    note: "How to use MiniMax CLI for multimodal + search via bash."
+
+  # ===== Matt Pocock (8) =====
+  - name: grill-with-docs
+    type: verbatim
+    source_repo: mattpocock/skills
+    source_path: skills/engineering/grill-with-docs/SKILL.md
+    source_url: https://github.com/mattpocock/skills/blob/main/skills/engineering/grill-with-docs/SKILL.md
+    license: MIT
+    imported_at: 2026-06-10
+    lines: 88
+
+  - name: diagnose
+    type: verbatim
+    source_repo: mattpocock/skills
+    source_path: skills/engineering/diagnose/SKILL.md
+    source_url: https://github.com/mattpocock/skills/blob/main/skills/engineering/diagnose/SKILL.md
+    license: MIT
+    imported_at: 2026-06-10
+    lines: 117
+
+  - name: to-issues
+    type: verbatim
+    source_repo: mattpocock/skills
+    source_path: skills/engineering/to-issues/SKILL.md
+    source_url: https://github.com/mattpocock/skills/blob/main/skills/engineering/to-issues/SKILL.md
+    license: MIT
+    imported_at: 2026-06-10
+    lines: 83
+
+  - name: tdd
+    type: verbatim
+    source_repo: mattpocock/skills
+    source_path: skills/engineering/tdd/SKILL.md
+    source_url: https://github.com/mattpocock/skills/blob/main/skills/engineering/tdd/SKILL.md
+    license: MIT
+    imported_at: 2026-06-10
+    sub_files:
+      - deep-modules.md
+      - interface-design.md
+      - mocking.md
+      - refactoring.md
+      - tests.md
+    lines: 109
+
+  - name: handoff
+    type: verbatim
+    source_repo: mattpocock/skills
+    source_path: skills/productivity/handoff/SKILL.md
+    source_url: https://github.com/mattpocock/skills/blob/main/skills/productivity/handoff/SKILL.md
+    license: MIT
+    imported_at: 2026-06-10
+    lines: 15
+    note: "User-facing skill (cross-session continuity). disable-model-invocation NOT set; argument-hint set."
+
+  - name: zoom-out
+    type: verbatim
+    source_repo: mattpocock/skills
+    source_path: skills/engineering/zoom-out/SKILL.md
+    source_url: https://github.com/mattpocock/skills/blob/main/skills/engineering/zoom-out/SKILL.md
+    license: MIT
+    imported_at: 2026-06-10
+    lines: 7
+    note: "User-facing skill (code comprehension from 30,000 feet). disable-model-invocation: true."
+
+  - name: caveman
+    type: verbatim
+    source_repo: mattpocock/skills
+    source_path: skills/productivity/caveman/SKILL.md
+    source_url: https://github.com/mattpocock/skills/blob/main/skills/productivity/caveman/SKILL.md
+    license: MIT
+    imported_at: 2026-06-11
+    lines: 46
+
+  - name: prototype
+    type: verbatim
+    source_repo: mattpocock/skills
+    source_path: skills/engineering/prototype/SKILL.md
+    source_url: https://github.com/mattpocock/skills/blob/main/skills/engineering/prototype/SKILL.md
+    license: MIT
+    imported_at: 2026-06-11
+    lines: 30
+
+  # ===== Addy Osmani (3) =====
+  - name: git-workflow-and-versioning
+    type: verbatim
+    source_repo: addyosmani/agent-skills
+    source_path: skills/git-workflow-and-versioning/SKILL.md
+    source_url: https://github.com/addyosmani/agent-skills/blob/main/skills/git-workflow-and-versioning/SKILL.md
+    license: MIT
+    imported_at: 2026-06-11
+    lines: 300
+
+  - name: incremental-implementation
+    type: verbatim
+    source_repo: addyosmani/agent-skills
+    source_path: skills/incremental-implementation/SKILL.md
+    source_url: https://github.com/addyosmani/agent-skills/blob/main/skills/incremental-implementation/SKILL.md
+    license: MIT
+    imported_at: 2026-06-11
+    lines: 245
+
+  - name: interview-me
+    type: verbatim
+    source_repo: addyosmani/agent-skills
+    source_path: skills/interview-me/SKILL.md
+    source_url: https://github.com/addyosmani/agent-skills/blob/main/skills/interview-me/SKILL.md
+    license: MIT
+    imported_at: 2026-06-10
+    lines: 231
+
+  # ===== Re-implementation (1) =====
+  - name: source-driven-development
+    type: reimpl
+    source_repo: addyosmani/agent-skills
+    source_url: https://github.com/addyosmani/agent-skills/blob/main/skills/source-driven-development/SKILL.md
+    license: MIT
+    imported_at: 2026-06-10
+    lines: 101
+    note: |
+      Lightweight re-implementation. Original is framework-agnostic;
+      we added a '⚠️ API Budget' section for Context7's 1000 calls/month
+      free tier, plus explicit DO/DON'T lists for when to query.
+      DO NOT auto-apply upstream — manual merge required.

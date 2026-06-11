@@ -867,6 +867,62 @@ done
 
 ---
 
+## 🔄 维护：上游 Skill 同步
+
+> **我们 15 个全局 skill 中有 11 个来自上游**（mattpocock/skills, addyosmani/agent-skills）。每个来源都在 [`skills/SOURCES.yaml`](skills/SOURCES.yaml) 留档，并附带检查+更新脚本。
+
+### Skill 来源汇总
+
+| 类型 | 数量 | 更新策略 |
+|------|------|---------|
+| **self**（无上游）| 3 个（karpathy, openspec, mmx-cli）| N/A |
+| **verbatim**（100% 原样）| 11 个（mattpocock + addyosmani）| ✅ 自动检查 + 安全应用 |
+| **reimpl**（轻量复刻）| 1 个（source-driven-development）| ⚠️ 需手动 review |
+
+### 检查上游 drift
+
+```bash
+# 默认：只检查（安全，不改任何东西）
+bash scripts/update-skills.sh
+
+# 预览会改什么（不真写）
+bash scripts/update-skills.sh --dry-run
+
+# 应用所有 verbatim 更新
+bash scripts/update-skills.sh --apply
+
+# 检查特定 skill
+bash scripts/update-skills.sh --skill grill-with-docs
+```
+
+**退出码**：
+- `0` = 全部最新
+- `1` = 检测到 drift（检查模式）
+- `2` = 网络/认证错误
+
+### 工作原理
+
+1. **读取** `skills/SOURCES.yaml`（15 个 skill，各含 source_repo + source_path）
+2. **拉取** 来自各上游的最新 SKILL.md（用 `api.github.com` 绕过 `raw.githubusercontent.com` 超时）
+3. **对比** 本地 + 上游内容的 SHA-256
+4. **报告** drift（或用 `--apply` 应用）
+5. **绝不**自动更新 reimpl skill（需手动 review）
+
+### 注册表格式
+
+```yaml
+- name: grill-with-docs
+  type: verbatim
+  source_repo: mattpocock/skills
+  source_path: skills/engineering/grill-with-docs/SKILL.md
+  imported_at: 2026-06-10
+  lines: 88
+```
+
+> **新加导入的 skill？** 在 `skills/SOURCES.yaml` 加一条，下次 drift 检查就会扫描到。
+
+---
+
 ## 📁 仓库结构
 
 ```
