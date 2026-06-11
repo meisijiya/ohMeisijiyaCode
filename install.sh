@@ -69,9 +69,12 @@ if [[ -d "${REPO_DIR}/tools/dist" ]]; then
   done
 fi
 
-# Mirror plugin (built output lives under .opencode/plugins/)
+# Mirror plugins (built output lives under .opencode/plugins/)
 copy_file_if_exists \
   "${REPO_DIR}/.opencode/plugins/orchestrator.js" \
+  "${TARGET_DIR}/plugins"
+copy_file_if_exists \
+  "${REPO_DIR}/.opencode/plugins/memory-plugin.js" \
   "${TARGET_DIR}/plugins"
 
 # Set up global AGENTS.md (personal preferences) — only if user doesn't have one
@@ -132,6 +135,60 @@ else
   echo "opencode.json: not found at ${OPENCODE_CONFIG} — skipping auto-registration"
   echo "  To enable the plugin manually, add 'plugins/orchestrator.js' to:"
   echo "    ${OPENCODE_CONFIG}"
+fi
+
+# Auto-register memory-plugin (optional, only if MEMORY.md exists or memory config present)
+MEMORY_PLUGIN_ENTRY="plugins/memory-plugin.js"
+if [[ -f "${OPENCODE_CONFIG}" ]]; then
+  # Check if MEMORY.md exists or memory config is present
+  REGISTER_MEMORY="$(python3 - "${OPENCODE_CONFIG}" "${MEMORY_PLUGIN_ENTRY}" "${TARGET_DIR}" <<'PY_EOF' 2>&1
+import json, sys, os
+
+config_path, plugin_entry, target_dir = sys.argv[1], sys.argv[2], sys.argv[3]
+
+# Check if MEMORY.md exists
+memory_exists = os.path.exists(os.path.join(target_dir, "MEMORY.md"))
+
+# Check if memory config exists
+memory_config = False
+try:
+    with open(config_path, "r", encoding="utf-8") as f:
+        config = json.load(f)
+    memory_config = "memory" in config
+except:
+    pass
+
+# Only register if MEMORY.md exists or memory config is present
+if not memory_exists and not memory_config:
+    print("skipped: memory-plugin (no MEMORY.md or memory config)")
+    sys.exit(0)
+
+with open(config_path, "r", encoding="utf-8") as f:
+    config = json.load(f)
+
+plugins = config.get("plugin", [])
+if not isinstance(plugins, list):
+    print(f"WARN: existing 'plugin' field is not a list ({type(plugins).__name__}); skipping auto-registration")
+    sys.exit(0)
+
+# Don't double-register
+if plugin_entry in plugins:
+    print(f"already-registered: {plugin_entry}")
+    sys.exit(0)
+
+plugins.append(plugin_entry)
+config["plugin"] = plugins
+
+# Preserve formatting
+with open(config_path, "w", encoding="utf-8") as f:
+    json.dump(config, f, indent=2, ensure_ascii=False)
+    f.write("\n")
+print(f"registered: {plugin_entry}")
+PY_EOF
+)"
+  if [[ "${REGISTER_MEMORY}" == *"registered"* ]]; then
+    echo "opencode.json: ${REGISTER_MEMORY}"
+  fi
 fi
 
 
