@@ -1,0 +1,1 @@
+../../memory-plugin/dist/memory-plugin.js
