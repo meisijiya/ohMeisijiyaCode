@@ -8,6 +8,17 @@
 
 ---
 
+## 🆕 New Feature: [memory-plugin](./memory-plugin/README.md) — BETA Long-Term Memory
+
+> **📦 项目级长期记忆插件（opt-in）。** 通过关键词匹配自动注入 `MEMORY.md` 中的历史决策/教训到 LLM 输入（`chat.message` 钩子），并通过 `[SAVE_MEMORY]` 标记自动存储新决策到 `MEMORY.md`（`experimental.text.complete` 钩子）。
+>
+> - 📖 **[完整文档 →](./memory-plugin/README.md)**（中英双语 + 风险评估 + 已知 Bug 历史）
+> - 🏗️ [架构设计](./memory-plugin/docs/architecture.md) · ✅ [测试结果](./memory-plugin/docs/test-results.md) · 📋 [TODO](./memory-plugin/TODO.md) · 📜 [CHANGELOG](./memory-plugin/CHANGELOG.md)
+> - ⚠️ **BETA 状态**：opencode 1.16.2 internal API 锁定，可能影响会话稳定性。**建议在非生产项目试用。**
+> - 🛠️ **opt-in 安装**：`./memory-plugin/install.sh` —— **仅当项目根存在 `MEMORY.md` 时**才会自动注册到 `opencode.json` 的 `plugin` 数组（不污染主项目）。
+
+---
+
 ## 🛒 Looking for Domain-Specific Skills? (React, Java, Docker, etc.)
 
 > Our project ships **15 general-purpose skills** (process/workflow oriented). For **domain-specific skills** (frameworks, databases, languages), we provide a **curated recommendation directory** — you install them yourself via `npx skills` CLI.
@@ -794,7 +805,7 @@ These skills are **domain knowledge** — they complement our 11 **process** ski
 | Agents | `.md` prompt files | **3** | Self-built |
 | Skills | `SKILL.md` files | **15** | 3 self-built + 12 imported (8 from mattpocock + 3 from addyosmani + 1 re-implemented from addyosmani) |
 | Tools | TypeScript → `.js` | **2** | Self-built (hashline-edit + task-dispatch) |
-| Plugin | `orchestrator.js` | **1** | Self-built |
+| Plugins | `orchestrator.js` + **`memory-plugin.js`** | **2** | Self-built (orchestrator) + opt-in long-term memory (see [memory-plugin/README.md](./memory-plugin/README.md)) |
 | CLIs | npm -g | **3** | mmx-cli (MiniMax multimodal+search) + ctx7 (lib docs) + playwright-cli (browser automation) |
 
 ---
@@ -1137,7 +1148,19 @@ ohMeisijiyaCode/
 │   └── dist/               # Build artifacts (gitignored)
 ├── .opencode/
 │   ├── src/orchestrator.ts # Plugin source (karpathy injection + 3-tier check)
-│   └── plugins/            # Build artifacts
+│   └── plugins/            # Build artifacts (orchestrator.js + memory-plugin.js symlink)
+├── memory-plugin/          # 🆕 BETA long-term memory plugin (opt-in)
+│   ├── README.md           # zh/en docs + risk assessment
+│   ├── CHANGELOG.md        # Keep a Changelog format
+│   ├── TODO.md             # 9 In-Scope + 11 Non-Goals
+│   ├── LICENSE             # MIT 2026
+│   ├── install.sh          # opt-in install (build + symlink + auto-register)
+│   ├── uninstall.sh        # hot-unplug (preserves MEMORY.md)
+│   ├── src/memory-plugin.ts
+│   ├── dist/memory-plugin.js
+│   └── docs/
+│       ├── architecture.md
+│       └── test-results.md
 ├── docs/                   # Design documents
 │   ├── 2026-06-10-1plus1plus1-agent-system-design.md
 │   └── 2026-06-10-v2-migration-plan.md
