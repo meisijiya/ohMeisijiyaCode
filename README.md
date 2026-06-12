@@ -311,6 +311,100 @@ You can also let Sisyphus delegate directly in conversation (it auto-selects bas
 
 ---
 
+## 🚀 Async Delegation (opencode 1.16.2+)
+
+Sisyphus, Lyra, and Hephaestus can dispatch work to sub-agents asynchronously using the `task-dispatch` tool with one of 3 `mode` values. Requires `OPENCODE_EXPERIMENTAL=true` (or `..._BACKGROUND_SUBAGENTS=true`).
+
+### The 4 patterns
+
+| `mode` | Behavior | Use when |
+|--------|----------|----------|
+| `background` (default) | Fire-and-forget; subagent runs in parallel; **results auto-injected** into parent session when done | Independent task, Sisyphus has other work, no need to wait for THIS result before continuing |
+| `sync` | Block until subagent finishes; return result inline | Short task, Sisyphus is idle, need the result to make the next decision |
+| `continuation` | Resume a prior subagent session via `task_id` (preserves conversation history) | Multi-turn collaboration (e.g., add constraint mid-way, change direction) |
+
+For **fan-out** (multiple subagents in parallel), call `task-dispatch` N times in the same response, each with `mode=background` — opencode starts them in true parallel.
+
+### 5 real-world use cases
+
+**Use case 1: Parallel research** — Compare 3 candidate libraries concurrently
+```typescript
+// Sisyphus prompt
+task-dispatch({ subagent_type: "lyra", mode: "background",
+  description: "research React Hook Form",
+  prompt: "调研 React Hook Form 的实现细节..." })
+task-dispatch({ subagent_type: "lyra", mode: "background",
+  description: "research Formik",
+  prompt: "调研 Formik 的实现细节..." })
+task-dispatch({ subagent_type: "lyra", mode: "background",
+  description: "research Final Form",
+  prompt: "调研 Final Form 的实现细节..." })
+// 3 Lyra sessions run in parallel; Sisyphus waits for all 3 to auto-inject,
+// then synthesizes the comparison
+```
+
+**Use case 2: Bug diagnosis (long-running)** — Diagnose production crash
+```typescript
+// 1st turn: kick off diagnose
+task-dispatch({ subagent_type: "lyra", mode: "background",
+  description: "diagnose prod crash",
+  prompt: "用 diagnose skill 分析 production 崩溃..." })
+// Sisyphus continues with other work; Lyra's diagnosis is auto-injected later
+
+// 2nd turn: ask follow-up on the same Lyra session
+task-dispatch({ subagent_type: "lyra", mode: "continuation",
+  task_id: "<prior_id>",
+  description: "follow-up diagnosis",
+  prompt: "基于上次的分析，再深挖一下 X 模块..." })
+```
+
+**Use case 3: Batch boilerplate creation** — 10 CRUD files for similar entities
+```typescript
+// Use sync (NOT background): sequential avoids write conflicts
+task-dispatch({ subagent_type: "hephaestus", mode: "sync",
+  description: "create 10 CRUD files",
+  prompt: "为 User, Post, Comment, Tag, Category, ... 创建 CRUD files..." })
+// Sisyphus blocks until all 10 files are written; then reviews
+```
+
+**Use case 4: Fire-and-forget long task** — Run a 30-min test coverage analysis
+```typescript
+// kick off and move on
+task-dispatch({ subagent_type: "lyra", mode: "background",
+  description: "analyze test coverage",
+  prompt: "运行完整测试套件并分析覆盖率..." })
+// Sisyphus continues with planning next feature; coverage report
+// gets auto-injected when Lyra finishes (30 min later)
+```
+
+**Use case 5: Real-time multi-turn** — Sisyphus and Lyra iterate on API design
+```typescript
+// Turn 1
+const result = task-dispatch({ subagent_type: "lyra", mode: "continuation",
+  task_id: "<ses_id>",  // reuses Lyra's session
+  description: "refine API design",
+  prompt: "加上 rate limiting 的考虑..." })
+// Lyra's context accumulates; both agents see the full design history
+```
+
+### Why not just `task` tool directly?
+
+The `task` tool is opencode's built-in. We wrap it in `task-dispatch` to:
+1. Provide a **3-value `mode` enum** (cleaner than juggling `background` + `task_id` flags)
+2. Add a default value (`mode=background`) so Sisyphus is "async-first by default"
+3. Normalize MCP proxy calls under the same interface (`subagent_type="mcp:<server>:<tool>"`)
+4. Match what `Sisyphus`'s prompt teaches — see `agents/sisyphus.md` `<delegation_protocol>` block
+
+### Constraints
+
+- **Fan-out limit**: ≤ 3 parallel subagents (avoid resource exhaustion + context pollution)
+- **Continuation interval**: don't resume the same task within 30s (waste of tokens)
+- **OPENCODE_EXPERIMENTAL=true** must be set in the env (one of: system env, `.env`, or your shell init)
+
+See `agents/sisyphus.md` and `agents/lyra.md` `<delegation_protocol>` blocks for decision trees.
+
+---
+
 ## 🌟 Inspiration & Provenance
 
 This project synthesizes ideas from multiple sources. Every imported skill cites its origin in the frontmatter `metadata.source` / `sourceUrl`.
@@ -337,7 +431,7 @@ We apply insights from [BV1v9ER68EJE](https://www.bilibili.com/video/BV1v9ER68EJ
 |---------|--------|
 | **U-shape attention curve** (entire context window → START + END high attention) | **Correction**: U-shape is about the **whole LLM context window** (system prompt + conversation + tool results), not the agent prompt's internal structure. **System prompt region** = "start" high-attention zone (includes all 3 agent prompts). **Recent conversation** = "end" high-attention zone. **Mid-context** = low attention (early conversation gets squeezed here). HTML tail blocks live in the start zone (stable), not the end zone |
 | **Hard constraints (never/always/must/绝对不要)** | Rewrote all 3 agents' `style_guide` with strong vocabulary + 反例/正例; tail HTML blocks use `**bold**` emphasis + parenthetical rationale |
-| **Skill files ≤ 300-500 lines** | All skills under 250 lines; **Sisyphus.md now 253 lines** (down from 363 — 148 lines of hardcoded protocol moved to superpowers skill injection) |
+| **Skill files ≤ 300-500 lines** | All skills under 250 lines; **Sisyphus.md now 289 lines** (down from 363 — 148 lines of hardcoded protocol moved to superpowers skill injection; +36 lines `<delegation_protocol>` for async delegation decision tree) |
 | **Solutions 1+2+3+4** (AGENTS.md + Scan + Hooks + SubAgent isolation) | All present: orchestrator plugin (`experimental.chat.system.transform`) is our "Hook"; subagent isolation is core to 1+1+1 architecture; **responsibility-proximity principle** (each agent declares its own `<responsibility_boundary>` block — no external AGENTS.md) |
 | **Anti-compaction-passive** (don't wait for quality to drop) | **Real failure case**: Sisyphus 363-line prompt became hard to maintain. Sisyphus used `task-dispatch` tool instead of `task` tool — **NOT because protocol was "swallowed" by U-shape attention** (the protocol WAS visible in the mid-prompt block), but because of a **layering violation** (Sisyphus decided on its own to use a non-standard tool, ignoring the explicit protocol). Fix: sink protocol to superpowers skill (real-time injection) for **clean architecture**, not to dodge U-shape swallowing |
 | **Soft constraints = no constraints** | `bash: *: allow` (project-internal trust) + hard deny blacklists (not "尽量") |
