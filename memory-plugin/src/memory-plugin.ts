@@ -199,10 +199,8 @@ export const MemoryPlugin: Plugin = async (ctx) => {
      * experimental.session.compacting: inject project memory into compaction context.
      */
     "experimental.session.compacting": async (input: any, output: any) => {
-      log("info", "compaction hook FIRED", { hasOutput: !!output, hasContext: !!output?.context })
       try {
         const block = buildInjectionBlock(cfg, projectDir)
-        log("info", "compaction buildInjectionBlock result", { blockChars: block.length, hasContext: !!output?.context })
         if (block && output?.context) {
           output.context.push(block)
           log("info", "memory injected into compaction", { blockChars: block.length })
