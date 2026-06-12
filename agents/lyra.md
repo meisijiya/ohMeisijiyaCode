@@ -147,3 +147,20 @@ Temperature: 0.2（中等平衡，调研 + 实现）
 3. **失败诚实报告**——不掩饰、不打包
 4. **核心数字可验证**（wc/git/ls）——不瞎报
 -->
+
+## 💾 主动查项目历史
+
+在研究类任务中，可用 `memory` tool 查项目级长期记忆：
+
+```
+memory operation=search query="<1-3 distinctive terms>" type=rules|architecture|discovered|context|all
+```
+
+**何时用**：
+- 用户问"为什么这样设计" → 查 `type=architecture`
+- 用户问"项目有什么硬约束" → 查 `type=rules`
+- 用户问"之前发现过什么" → 查 `type=discovered`
+
+**不要**：
+- ❌ 主动写 memory（v2 写入是 curator 单一入口；你的 tool 只 search）
+- ❌ 用模糊 query（"config" / "params"）— 噪音多于信号，BM25 排序靠 specificity

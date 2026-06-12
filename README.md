@@ -1180,3 +1180,43 @@ ohMeisijiyaCode/
 ## 📄 License
 
 This project is licensed under MIT, see [LICENSE](./LICENSE).
+## 💾 Project Long-term Memory (opencode 1.17.4+)
+
+> **v2:** SQLite FTS5 + curator-driven, event-hooked, importance-ranked. Replaces v1's keyword-regex + `[SAVE_MEMORY]` marker.
+
+### What it does
+
+- **Captures** durable project knowledge (rules, architecture decisions, discovered facts) across sessions
+- **Injects** relevant top-N memory into `system_prompt` at `session.created` and `session.compacted`
+- **Searches** via `memory` tool (BM25, CJK + Latin, OR-joined phrase queries)
+- **Self-maintains** via `memory-curator` background subagent (5-phase reconcile)
+
+### Install
+
+```bash
+cd memory-plugin && ./install.sh
+# Restart opencode
+```
+
+### Usage
+
+```bash
+# Force a full reconcile of project memory
+/dream
+
+# Search project memory (in any session)
+# memory tool: operation=search, query, type, limit
+```
+
+### Architecture
+
+- **5 hooks**: `message.updated` (queue) / `session.idle` (curator) / `session.created` (inject) / `session.compacted` (rebuild brief) / `tui.command "dream"` (force full)
+- **Storage**: `data/memory/projects/<sha256(repo_path)[:12]>/MEMORY.md` (git-tracked, 4 sections)
+- **Index**: `data/memory.db` (SQLite FTS5, `unicode61` tokenizer, `'delete' magic triggers`)
+- **Single writer**: `memory-curator` subagent (cheap model, 5-phase reconcile)
+- **Importance ranking**: `weight[type] × age_decay × (1 + log(1+hit_count))`, 3K token budget
+
+### See also
+
+- [Spec](docs/superpowers/specs/2026-06-12-v2-long-term-memory-design.md)
+- [Implementation plan](docs/superpowers/plans/2026-06-12-v2-long-term-memory.md)

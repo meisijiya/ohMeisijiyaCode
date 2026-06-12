@@ -1143,3 +1143,43 @@ ohMeisijiyaCode/
 ## 📄 License
 
 本项目采用 MIT 许可证，详见 [LICENSE](./LICENSE)。
+## 💾 项目长期记忆（opencode 1.17.4+）
+
+> **v2:** SQLite FTS5 + curator 驱动 + 事件钩子 + importance 排序。取代 v1 的关键词正则 + `[SAVE_MEMORY]` 标记。
+
+### 做什么
+
+- **捕获**项目级持久知识（规则、架构决策、发现事实），跨 session
+- **注入**top-N 记忆到 `session.created` 和 `session.compacted` 时的 `system_prompt`
+- **检索**用 `memory` 工具（BM25, CJK + 拉丁, OR-join 短语查询）
+- **自动维护**靠 `memory-curator` 后台子智能体（5 阶段整理）
+
+### 安装
+
+```bash
+cd memory-plugin && ./install.sh
+# 重启 opencode
+```
+
+### 使用
+
+```bash
+# 强制全量重整
+/dream
+
+# 检索项目记忆
+# memory tool: operation=search, query, type, limit
+```
+
+### 架构
+
+- **5 个钩子**：`message.updated` (queue) / `session.idle` (curator) / `session.created` (inject) / `session.compacted` (重建简报) / `tui.command "dream"` (强制全量)
+- **存储**：`data/memory/projects/<sha256(repo_path)[:12]>/MEMORY.md`（git 追踪, 4 sections）
+- **索引**：`data/memory.db`（SQLite FTS5, `unicode61` tokenizer, `'delete' magic triggers`）
+- **单一写入**：`memory-curator` 子智能体（cheap model, 5 阶段整理）
+- **Importance 排序**：`weight[type] × age_decay × (1 + log(1+hit_count))`，3K token budget
+
+### 参见
+
+- [Spec](docs/superpowers/specs/2026-06-12-v2-long-term-memory-design.md)
+- [实施 plan](docs/superpowers/plans/2026-06-12-v2-long-term-memory.md)

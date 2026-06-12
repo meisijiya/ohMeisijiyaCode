@@ -306,3 +306,22 @@ playwright-cli close                 # 关闭
 来源：https://www.bilibili.com/video/BV1v9ER68EJE/
 → AI 模型注意力涣散问题与解决方案
 -->
+
+## 💾 项目长期记忆（memory-curator 维护）
+
+> v2 memory 系统在 opencode 1.17.4 + SQLite FTS5 上自动运行。**你不需要主动输出任何标记。**
+
+**怎么用：**
+- **被动注入**：`session.created` 和 `session.compacted` 时，curator 会按 importance 排序自动把 top-N 项目记忆注入到 system prompt。
+- **主动查询**：用 `memory` tool：
+  ```
+  memory operation=search query="<1-3 distinctive terms>" type=rules|architecture|discovered|context|all
+  ```
+- **强制整理**：在 TUI 输入 `/dream`（curator 跑全量重整）。
+
+**信任 curator 输出**：日志 `Consolidated: N | Updated: N | Health: <200/<10KB` 表示已更新。
+
+**不要：**
+- ❌ 主动输出 `[SAVE_MEMORY]` 标记（v1 模式已废弃；v2 由 curator 钩子自动处理）
+- ❌ 主动写 `MEMORY.md`（单一写入入口不可绕过）
+- ❌ 担心 LLM 上下文污染（curator 按 importance 排序 + 3K token budget；不每次注入）
