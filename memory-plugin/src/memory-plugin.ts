@@ -152,6 +152,34 @@ function buildInjectionBlock(cfg: MemoryConfig, projectDir: string): string {
   return `## 📚 Project Memory (auto-injected)\n\n${top.map((e) => e.body).join("\n")}\n\n---`
 }
 
+/**
+ * Spawn memory-curator subagent in background.
+ * @param ctx opencode plugin context
+ * @param projectDir project root
+ * @param mode "delta" (session.idle) or "full" (session.compacted)
+ */
+async function dispatchCurator(ctx: any, projectDir: string, mode: "delta" | "full"): Promise<void> {
+  const client = ctx.client
+  if (!client?.tool?.invoke) return
+  const isFull = mode === "full"
+  const prompt = [
+    `/${mode === "full" ? "dream" : "idle"} trigger — ${isFull ? "full reconcile" : "delta reconcile (only new queue.jsonl since last)"}.`,
+    `Project directory: ${projectDir}`,
+    isFull
+      ? `Force full reconcile — process ALL queue.jsonl entries, verify each candidate. No incremental skip.`
+      : `Delta reconcile — only process queue.jsonl entries with time > last_reconcile_at. Skip already-processed entries.`,
+    `Read data/memory/queue.jsonl for content.`,
+    `Read data/memory/projects/*/MEMORY.md for current state.`,
+    `Follow the workflow defined in memory-plugin/agents/memory-curator.md.`,
+  ].join("\n")
+  await client.tool.invoke("task-dispatch", {
+    subagent_type: "lyra",
+    description: `memory curator ${mode} reconcile`,
+    prompt,
+    background: true,
+  } as any).catch(() => {})
+}
+
 // ---- Plugin ----
 export const MemoryPlugin: Plugin = async (ctx) => {
   // CONSTRUCTOR: ZERO I/O
@@ -175,7 +203,7 @@ export const MemoryPlugin: Plugin = async (ctx) => {
         const block = buildInjectionBlock(cfg, projectDir)
         if (block && output?.context) {
           output.context.push(block)
-          log("debug", "memory injected into compaction", { blockChars: block.length })
+          log("info", "memory injected into compaction", { blockChars: block.length })
         }
       } catch (e) {
         log("error", "compaction hook failed", { error: (e as Error).message })
@@ -191,23 +219,7 @@ export const MemoryPlugin: Plugin = async (ctx) => {
         getDb(projectDir)
         writeMarker(projectDir, "dream", { triggeredBy: input?.sessionID ?? "?" })
         log("info", "/dream triggered")
-
-        const { client } = ctx as any
-        if (client?.tool?.invoke) {
-          await client.tool.invoke("task-dispatch", {
-            subagent_type: "lyra",
-            description: "memory curator full reconcile",
-            prompt: [
-              `/dream triggered by user.`,
-              `Project directory: ${projectDir}`,
-              `Force full reconcile — walk all sessions, verify each candidate against trajectory, no incremental optimization.`,
-              `Read data/memory/queue.jsonl for recent content.`,
-              `Read data/memory/projects/*/MEMORY.md for current state.`,
-              `Follow the 5-phase workflow defined in memory-plugin/agents/memory-curator.md.`,
-            ].join("\n"),
-            background: true,
-          } as any).catch(() => {})
-        }
+        dispatchCurator(ctx, projectDir, "full").catch(() => {})
 
         return { output: "✓ /dream: curator dispatched (background)." }
       } catch (e) {
@@ -260,10 +272,12 @@ export const MemoryPlugin: Plugin = async (ctx) => {
 
         if (event.type === "session.idle") {
           writeMarker(projectDir, "session.idle", {})
+          dispatchCurator(ctx, projectDir, "delta").catch(() => {})
         }
 
         if (event.type === "session.compacted") {
           writeMarker(projectDir, "session.compacted", {})
+          dispatchCurator(ctx, projectDir, "full").catch(() => {})
         }
       } catch (e) {
         log("error", "event handler failed", { eventType: event.type, error: (e as Error).message })
