@@ -141,7 +141,6 @@ export const MemoryPlugin: Plugin = async (ctx) => {
         const block = buildInjectionBlock(cfg, projectDir)
         if (block && output?.context) {
           output.context.push(block)
-          console.log("[memory-plugin v3] compacting: injected memory block")
         }
       } catch (e) {
         console.error("[memory-plugin v3] compacting error:", e)
@@ -156,13 +155,12 @@ export const MemoryPlugin: Plugin = async (ctx) => {
       try {
         if (input?.command !== "/dream") return
         getDb(projectDir)  // ensure DB is alive
-        writeMarker(projectDir, "dream", {
-          command: "/dream",
-          triggeredBy: input?.sessionID ?? "?",
-        })
-        console.log("[memory-plugin v3] /dream triggered ✓")
+          writeMarker(projectDir, "dream", {
+            command: "/dream",
+            triggeredBy: input?.sessionID ?? "?",
+          })
 
-        // Attempt to spawn memory-curator as background subagent
+          // Attempt to spawn memory-curator as background subagent
         const { client } = ctx as any
         if (client?.tool?.invoke) {
           await client.tool.invoke("task-dispatch", {
@@ -199,7 +197,6 @@ export const MemoryPlugin: Plugin = async (ctx) => {
           writeMarker(projectDir, "session.created", {
             sessionId: (event as any).sessionID ?? "?",
           })
-          console.log("[memory-plugin v3] session.created ✓")
         }
 
         if (event.type === "message.updated") {
@@ -212,12 +209,10 @@ export const MemoryPlugin: Plugin = async (ctx) => {
 
         if (event.type === "session.idle") {
           writeMarker(projectDir, "session.idle", {})
-          console.log("[memory-plugin v3] session.idle ✓")
         }
 
         if (event.type === "session.compacted") {
           writeMarker(projectDir, "session.compacted", {})
-          console.log("[memory-plugin v3] session.compacted ✓")
         }
       } catch (e) {
         console.error("[memory-plugin v3] event error:", e)
