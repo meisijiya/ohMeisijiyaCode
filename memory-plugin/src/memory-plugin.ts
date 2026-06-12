@@ -166,6 +166,29 @@ export const MemoryPlugin: Plugin = async (ctx) => {
 
   return {
     /**
+     * session.created (named hook): inject project memory into system_prompt at session start.
+     * If this doesn't fire in opencode 1.17.4, the event handler fallback below catches it.
+     */
+    "session.created": async (input: any, output: any) => {
+      try {
+        const block = buildInjectionBlock(cfg, projectDir)
+        console.error("[memory-plugin v3] session.created NAMED HOOK FIRED!", { blockChars: block.length, hasOutput: !!output })
+        if (!block) return
+        if (output?.system !== undefined) {
+          output.system = block + "\n\n" + output.system
+          console.error("[memory-plugin v3] injected into output.system")
+        } else if (output?.system_prompt !== undefined) {
+          output.system_prompt = block + "\n\n" + output.system_prompt
+          console.error("[memory-plugin v3] injected into output.system_prompt")
+        } else {
+          console.error("[memory-plugin v3] no system/system_prompt in output, keys:", Object.keys(output || {}))
+        }
+      } catch (e) {
+        log("error", "session.created named hook failed", { error: (e as Error).message })
+      }
+    },
+
+    /**
      * experimental.session.compacting: inject project memory into compaction context.
      */
     "experimental.session.compacting": async (input: any, output: any) => {
