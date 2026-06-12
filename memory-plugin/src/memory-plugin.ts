@@ -127,9 +127,9 @@ function buildInjectionBlock(cfg: MemoryConfig, projectDir: string): string {
 // ---- Plugin ----
 export const MemoryPlugin: Plugin = async (ctx) => {
   // CONSTRUCTOR: ZERO I/O
-  const project = (ctx as any).project
-  const projectDir: string = project?.worktree ?? project?.directory ?? process.cwd()
-  const cfg = getConfig(project)
+  // ctx.directory first: it's always the project dir. ctx.worktree may be "/" for non-git dirs.
+  const projectDir: string = (ctx as any).directory ?? (ctx as any).worktree ?? process.cwd()
+  const cfg = getConfig((ctx as any).project)
   if (!cfg.enabled) return {}
 
   return {
