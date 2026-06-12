@@ -228,6 +228,21 @@ export const MemoryPlugin: Plugin = async (ctx) => {
           writeMarker(projectDir, "session.created", {
             sessionId: (event as any).sessionID ?? "?",
           })
+          // Try to inject memory block into event object (alternative to named-hook output)
+          const block = buildInjectionBlock(cfg, projectDir)
+          if (block) {
+            const ev = event as any
+            if (ev.system !== undefined) {
+              ev.system = block + "\n\n" + ev.system
+              log("debug", "injected memory via event.system")
+            } else if (ev.system_prompt !== undefined) {
+              ev.system_prompt = block + "\n\n" + ev.system_prompt
+              log("debug", "injected memory via event.system_prompt")
+            } else {
+              // Diagnostic: what keys does the event have?
+              log("debug", "session.created event keys", { keys: Object.keys(ev).join(",") })
+            }
+          }
         }
 
         if (event.type === "message.updated") {
