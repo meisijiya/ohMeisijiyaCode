@@ -324,7 +324,7 @@ This project synthesizes ideas from multiple sources. Every imported skill cites
 | **[Matt Pocock skills](https://github.com/mattpocock/skills)** | 3 verbatim imports: `grill-with-docs`, `diagnose`, `to-issues` | Don't run their full installer (3-skill conflict risk; we picked the 3 we need) |
 | **[karpathy-guidelines](https://github.com/multica-ai/andrej-karpathy-skills)** | 4 coding principles (Think/Simplicity/Surgical/Goal-Driven) | — |
 | **[OpenSpec](https://github.com/Fission-AI/OpenSpec)** | Two-layer trigger routing (keyword + semantic) | We don't bundle the generated skills/commands (user runs `openspec init` per-project) |
-| **[oh-my-openagent](https://github.com/code-yeongyu/oh-my-openagent)** | Architecture inspiration (orchestrator → specialists pattern) | We don't use 100K+ LOC codebase or HTTP-based background subagents (plugin mode can't) |
+| **[oh-my-openagent](https://github.com/code-yeongyu/oh-my-openagent)** | Architecture inspiration (orchestrator → specialists pattern) | We don't use 100K+ LOC codebase. Background subagents are supported natively by opencode 1.16.2+ (no HTTP proxy needed). |
 | **[oh-my-opencode-slim](https://github.com/alvinunreal/oh-my-opencode-slim)** | Role-based permission tiers (read-only vs read-write agents) | We don't import 5+ specialist agents (we keep 3 tiers) |
 | **[addyosmani/agent-skills](https://github.com/addyosmani/agent-skills)** | `interview-me` (verbatim) + `source-driven-development` (lightweight re-implementation) | We don't import all 23 skills (lightweight principle) |
 | **[RTK](https://github.com/rtk-ai/rtk)** | Recommended for 60-90% token savings | — |
