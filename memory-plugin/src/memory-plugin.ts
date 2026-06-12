@@ -201,13 +201,15 @@ export const MemoryPlugin: Plugin = async (ctx) => {
 
         if (event.type === "message.updated") {
           const ev = event as any
-          console.error("[memory-plugin v3] msg-updated props keys:", ev.properties ? Object.keys(ev.properties) : "no properties")
-          console.error("[memory-plugin v3] msg-updated props sample:", JSON.stringify(ev.properties).slice(0, 200))
-          if (ev.message?.role !== "assistant") return
-          const textPart = (ev.message.parts ?? []).find((p: any) => p.type === "text" && p.text)
-          if (!textPart) { console.error("[memory-plugin v3] message.updated: no text part"); return }
-          appendToQueue(cfg, projectDir, ev.sessionID ?? "?", ev.message.id, textPart.text)
-          console.error("[memory-plugin v3] message.updated: queued", textPart.text.slice(0, 50))
+          const info = ev.properties?.info
+          if (!info || info.role !== "assistant") return
+          // Extract text from assistant response (openode 1.17.4)
+          const text: string = info.content ?? info.text ?? info.body ?? ""
+          if (!text) {
+            console.error("[memory-plugin v3] assistant msg info keys:", Object.keys(info).join(","))
+            return
+          }
+          appendToQueue(cfg, projectDir, ev.properties.sessionID ?? "?", info.id, text)
         }
 
         if (event.type === "session.idle") {
