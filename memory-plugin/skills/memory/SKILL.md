@@ -1,48 +1,33 @@
 ---
 name: memory
-description: Search and manage long-term project memory (FTS5 + curator). Use at session start or when user asks about project context, past decisions, or established rules.
+description: Search and manage long-term project memory (FTS5 + curator). MUST invoke at session start or when user asks about project context, past decisions, established rules, or wants to persist knowledge. Do NOT skip — missing context causes wrong decisions.
 ---
 
-# Project Memory Skill
+# Project Memory
 
-## When to Activate
-
-- **Session start**: Call `search_memory` to load project context
-- **User asks**: "what do we know about X", "how did we decide Y", "what are the rules"
-- **After establishing durable knowledge**: rules, architecture decisions, discovered facts → trigger curator
-
-## search_memory Tool
+## Session Start (ALWAYS)
 
 ```
-search_memory(query="<keywords>", type="all", limit=5)
+search_memory(query="project context architecture rules", type="all", limit=5)
 ```
 
-- `type`: `"rules"`, `"architecture"`, `"discovered"`, `"context"`, or `"all"`
-- Results are BM25-ranked FTS5 full-text search
-- If 0 results: retry with fewer/more distinctive keywords — FTS5 handles CJK, special chars
+Review results. If 0 hits: `Read data/memory/projects/*/MEMORY.md`.
 
-## Session Start Protocol
+## Tool: search_memory
 
-1. Call `search_memory(query="project context architecture rules", type="all")`
-2. Review snippets for critical context
-3. If empty, check `data/memory/projects/*/MEMORY.md` as fallback
+FTS5 BM25 full-text search over durable knowledge.
 
-## Curator Trigger Conditions
+- `query`: keywords (CJK OK, special chars OK)
+- `type`: `"all"` | `"rules"` | `"architecture"` | `"discovered"` | `"context"`
+- `limit`: default 5
+- Returns snippets ranked by relevance
 
-Dispatch `memory-curator` subagent in background when:
-- User says "remember this" / "don't forget" / runs `/dream`
-- A significant architectural decision is finalized
-- New project rules are established
-- Confirmed discoveries about tools/APIs/configurations
+## Trigger Curator (consolidate to MEMORY.md)
 
-Trigger format:
-```
-task-dispatch with subagent_type: "lyra"
-prompt: "<delta|full> reconcile in <projectDir>. Read queue.jsonl + MEMORY.md. Follow memory-curator workflow."
-```
+Dispatch `memory-curator` subagent (background, `subagent_type: "lyra"`) when:
+- User says "remember this" / "don't forget" / `/dream`
+- Architecture decision finalized → `full` mode
+- New rules established → `delta` mode
+- Confirmed tool/API/config discovery → `delta` mode
 
-## Notes
-
-- Memory stored at `data/memory/projects/<hash>/MEMORY.md` — prefer the tool over direct Read
-- `/dream` command available for manual full reconcile
-- Curator outputs `Consolidated: N | Updated: N | Deleted: N` format
+Prompt: `<delta|full> reconcile in <projectDir>. Read queue.jsonl + MEMORY.md. Follow memory-curator workflow.`
