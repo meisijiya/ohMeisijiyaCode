@@ -201,9 +201,8 @@ export const MemoryPlugin: Plugin = async (ctx) => {
 
         if (event.type === "message.updated") {
           const ev = event as any
-          // DEBUG: log message shape to find correct field names
-          console.error("[memory-plugin v3] message.updated raw keys:", Object.keys(ev).join(", "))
-          console.error("[memory-plugin v3] message.updated role:", ev.message?.role, "parts:", JSON.stringify(ev.message?.parts?.map((p:any) => p.type)))
+          console.error("[memory-plugin v3] msg-updated props keys:", ev.properties ? Object.keys(ev.properties) : "no properties")
+          console.error("[memory-plugin v3] msg-updated props sample:", JSON.stringify(ev.properties).slice(0, 200))
           if (ev.message?.role !== "assistant") return
           const textPart = (ev.message.parts ?? []).find((p: any) => p.type === "text" && p.text)
           if (!textPart) { console.error("[memory-plugin v3] message.updated: no text part"); return }
