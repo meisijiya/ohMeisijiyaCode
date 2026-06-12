@@ -183,22 +183,6 @@ export const MemoryPlugin: Plugin = async (ctx) => {
     },
 
     /**
-     * tui.prompt.append: prepend memory block to user's first prompt in a session.
-     * Alternative to system_prompt injection (not supported by session.created in 1.17.4).
-     */
-    "tui.prompt.append": async (input: any, output: any) => {
-      try {
-        const block = buildInjectionBlock(cfg, projectDir)
-        if (block && output?.append) {
-          output.append = `[Project Memory]\n${block}\n\n${input?.prompt ?? ""}`
-          log("info", "memory prepended to prompt", { chars: block.length })
-        }
-      } catch (e) {
-        log("error", "tui.prompt.append failed", { error: (e as Error).message })
-      }
-    },
-
-    /**
      * /dream command: force full curator reconcile.
      */
     "tui.command.execute": async (input: any) => {
@@ -244,6 +228,21 @@ export const MemoryPlugin: Plugin = async (ctx) => {
           writeMarker(projectDir, "session.created", {
             sessionId: (event as any).sessionID ?? "?",
           })
+          // Try to inject memory block into event object (alternative to named-hook output)
+          const block = buildInjectionBlock(cfg, projectDir)
+          if (block) {
+            const ev = event as any
+            if (ev.system !== undefined) {
+              ev.system = block + "\n\n" + ev.system
+              log("debug", "injected memory via event.system")
+            } else if (ev.system_prompt !== undefined) {
+              ev.system_prompt = block + "\n\n" + ev.system_prompt
+              log("debug", "injected memory via event.system_prompt")
+            } else {
+              // Diagnostic: what keys does the event have?
+              log("debug", "session.created event keys", { keys: Object.keys(ev).join(",") })
+            }
+          }
         }
 
         if (event.type === "message.updated") {
