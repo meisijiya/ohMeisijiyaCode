@@ -196,21 +196,6 @@ export const MemoryPlugin: Plugin = async (ctx) => {
 
   return {
     /**
-     * Inject memory skill instructions into system prompt every session.
-     * With search_memory tool available, the agent can query project memory proactively.
-     */
-    system_instructions: [
-      `## Project Memory System (auto-loaded)`,
-      ``,
-      `This project has a long-term memory system. Use it at session start:`,
-      `- The \`search_memory\` tool searches durable knowledge (rules, architecture, discovered facts) via FTS5 BM25.`,
-      `- Call \`search_memory(query="project context architecture rules", type="all")\` at session start.`,
-      `- If you establish new rules, architecture decisions, or discover durable facts → dispatch \`memory-curator\` subagent to consolidate.`,
-      `- User can run \`/dream\` for a full manual memory reconcile.`,
-      `- Memory lives in \`data/memory/projects/*/MEMORY.md\` but prefer the search tool.`,
-    ].join("\n"),
-
-    /**
      * experimental.session.compacting: inject project memory into compaction context.
      */
     "experimental.session.compacting": async (input: any, output: any) => {

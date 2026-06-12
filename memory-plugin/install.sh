@@ -19,7 +19,6 @@ PLUGIN_DIST="${REPO_DIR}/memory-plugin/dist"
 GLOBAL_PLUGINS_DIR="${XDG_CONFIG_HOME:-$HOME/.config}/opencode/plugins"
 GLOBAL_AGENTS_DIR="${XDG_CONFIG_HOME:-$HOME/.config}/opencode/agents"
 GLOBAL_COMMANDS_DIR="${XDG_CONFIG_HOME:-$HOME/.config}/opencode/commands"
-GLOBAL_SKILLS_DIR="${XDG_CONFIG_HOME:-$HOME/.config}/opencode/skills"
 
 echo "🐘 Installing v3 long-term memory plugin → ${REPO_DIR}"
 echo ""
@@ -70,12 +69,6 @@ mkdir -p "${GLOBAL_COMMANDS_DIR}"
 ln -sf "${REPO_DIR}/.opencode/commands/dream.md" \
   "${GLOBAL_COMMANDS_DIR}/dream.md"
 echo "  ✓ Symlink: ${GLOBAL_COMMANDS_DIR}/dream.md"
-
-# 6. Register memory skill globally
-mkdir -p "${GLOBAL_SKILLS_DIR}/memory"
-ln -sf "${REPO_DIR}/memory-plugin/skills/memory/SKILL.md" \
-  "${GLOBAL_SKILLS_DIR}/memory/SKILL.md"
-echo "  ✓ Symlink: ${GLOBAL_SKILLS_DIR}/memory/SKILL.md"
 
 echo ""
 echo "✅ memory-plugin v3 installed."
