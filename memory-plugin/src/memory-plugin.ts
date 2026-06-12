@@ -12,6 +12,7 @@
  * Reference: docs/superpowers/specs/2026-06-12-v2-test-pitfalls.md
  */
 import type { Plugin } from "@opencode-ai/plugin"
+import { tool } from "@opencode-ai/plugin"
 import { Database } from "bun:sqlite"
 import { existsSync, mkdirSync, writeFileSync, readFileSync, appendFileSync, readdirSync, unlinkSync } from "fs"
 import { join, dirname } from "path"
@@ -20,6 +21,7 @@ import { migrate } from "./lib/migrate"
 import { parseMemory, renderEntry } from "./lib/memory-parse"
 import { selectTopN, type Entry } from "./lib/importance"
 import { resolveProjectId } from "./lib/scope"
+import { searchMemory, formatSearchResults, type SearchArgs } from "./memory"
 
 // ---- Config ----
 interface MemoryConfig {
@@ -166,29 +168,6 @@ export const MemoryPlugin: Plugin = async (ctx) => {
 
   return {
     /**
-     * session.created (named hook): inject project memory into system_prompt at session start.
-     * If this doesn't fire in opencode 1.17.4, the event handler fallback below catches it.
-     */
-    "session.created": async (input: any, output: any) => {
-      try {
-        const block = buildInjectionBlock(cfg, projectDir)
-        console.error("[memory-plugin v3] session.created NAMED HOOK FIRED!", { blockChars: block.length, hasOutput: !!output })
-        if (!block) return
-        if (output?.system !== undefined) {
-          output.system = block + "\n\n" + output.system
-          console.error("[memory-plugin v3] injected into output.system")
-        } else if (output?.system_prompt !== undefined) {
-          output.system_prompt = block + "\n\n" + output.system_prompt
-          console.error("[memory-plugin v3] injected into output.system_prompt")
-        } else {
-          console.error("[memory-plugin v3] no system/system_prompt in output, keys:", Object.keys(output || {}))
-        }
-      } catch (e) {
-        log("error", "session.created named hook failed", { error: (e as Error).message })
-      }
-    },
-
-    /**
      * experimental.session.compacting: inject project memory into compaction context.
      */
     "experimental.session.compacting": async (input: any, output: any) => {
@@ -274,6 +253,36 @@ export const MemoryPlugin: Plugin = async (ctx) => {
       } catch (e) {
         log("error", "event handler failed", { eventType: event.type, error: (e as Error).message })
       }
+    },
+
+    /**
+     * search_memory custom tool: LLM-accessible FTS5 search over project memory.
+     * Triggered when the agent needs to recall durable knowledge from MEMORY.md.
+     */
+    tool: {
+      search_memory: tool({
+        description: "Search project memory (MEMORY.md) using FTS5 full-text search. Returns ranked results with snippets. Use when you need to recall rules, architecture decisions, or discovered knowledge from past sessions.",
+        args: {
+          query: tool.schema.string(),
+          type: tool.schema.string().optional().describe("Filter by memory type: 'rules', 'architecture', 'discovered', 'context', or 'all' (default)"),
+          limit: tool.schema.number().optional().describe("Max results (default 5)"),
+        },
+        async execute(args: SearchArgs, context: any) {
+          try {
+            const db = getDb(projectDir)
+            const mDir = memoryDir(cfg, projectDir)
+            const results = await searchMemory(db, mDir, {
+              query: args.query,
+              type: (args.type as any) ?? "all",
+              limit: args.limit ?? 5,
+            })
+            return formatSearchResults(results, args.query)
+          } catch (e) {
+            log("error", "search_memory tool failed", { error: (e as Error).message })
+            return `Search failed: ${(e as Error).message}`
+          }
+        },
+      }),
     },
   }
 }
