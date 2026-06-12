@@ -53,12 +53,11 @@ type LogLevel = "debug" | "info" | "warn" | "error"
 
 /** Write to opencode's persistent log. Falls back to console if client unavailable. */
 function log(level: LogLevel, message: string, extra?: Record<string, unknown>): void {
+  const tagged = `[memory-plugin] ${message}`
   if (_client?.app?.log) {
-    // fire-and-forget: don't await log writes
-    _client.app.log({ body: { service: "memory-plugin", level, message, ...(extra ? { extra } : {}) } }).catch(() => {})
+    _client.app.log({ body: { service: "memory-plugin", level, message: tagged, ...(extra ? { extra } : {}) } }).catch(() => {})
   }
-  // Fallback for when opencode client isn't available yet
-  if (level === "error") console.error(`[memory-plugin v3] ${level}: ${message}`)
+  if (level === "error") console.error(`[memory-plugin v3] ${message}`)
 }
 
 // ---- Data helpers ----
