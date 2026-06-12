@@ -203,13 +203,21 @@ export const MemoryPlugin: Plugin = async (ctx) => {
           const ev = event as any
           const info = ev.properties?.info
           if (!info || info.role !== "assistant") return
-          // Extract text from assistant response (openode 1.17.4)
-          const text: string = info.content ?? info.text ?? info.body ?? ""
+          // message.updated only has metadata. Actual text comes via message.part.updated.
+          // We just note the message here; text is accumulated in message.part.updated handler.
+        }
+
+        if (event.type === "message.part.updated") {
+          const ev = event as any
+          const props = ev.properties
+          if (!props) return
+          // message.part.updated fires per chunk.
+          const text: string = props.text ?? props.content ?? props.info?.text ?? ""
           if (!text) {
-            console.error("[memory-plugin v3] assistant msg info keys:", Object.keys(info).join(","))
+            console.error("[memory-plugin v3] part-updated props keys:", Object.keys(props).join(","))
             return
           }
-          appendToQueue(cfg, projectDir, ev.properties.sessionID ?? "?", info.id, text)
+          appendToQueue(cfg, projectDir, props.sessionID ?? "?", props.messageID ?? props.id ?? "?", text)
         }
 
         if (event.type === "session.idle") {
