@@ -1,53 +1,25 @@
 #!/usr/bin/env bash
-# memory-plugin/uninstall.sh — Remove v2 long-term memory plugin
+# memory-plugin/uninstall.sh — v3 long-term memory uninstaller
 #
-# By default, preserves:
-# - data/memory/projects/<id>/MEMORY.md  (user data, never deleted)
-#
-# Pass --purge to delete data/memory/ entirely.
+# Removes symlinks and built artifacts.
+# Preserves data/memory-plugin.db and data/memory/ by default.
 
 set -euo pipefail
 
 REPO_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+GLOBAL_PLUGINS_DIR="${XDG_CONFIG_HOME:-$HOME/.config}/opencode/plugins"
 
-PURGE=false
-if [[ "${1:-}" == "--purge" ]]; then
-  PURGE=true
-fi
+echo "→ Removing symlinks..."
+rm -f "${REPO_DIR}/.opencode/plugins/memory-plugin.js"
+rm -f "${GLOBAL_PLUGINS_DIR}/memory-plugin.js"
+echo "  ✓ Symlinks removed"
 
-echo "Uninstalling v2 long-term memory plugin from ${REPO_DIR}"
-echo ""
-
-# 1. Remove symlink
-if [[ -L "${REPO_DIR}/.opencode/plugins/memory-plugin.js" ]]; then
-  rm "${REPO_DIR}/.opencode/plugins/memory-plugin.js"
-  echo "  ✓ Removed symlink"
-fi
-
-# 2. Remove dist
-if [[ -d "${REPO_DIR}/memory-plugin/dist" ]]; then
-  rm -rf "${REPO_DIR}/memory-plugin/dist"
-  echo "  ✓ Removed dist/"
-fi
-
-# 3. MEMORY.md: ask
-if [[ -d "${REPO_DIR}/data/memory/projects" ]]; then
-  if [[ "${PURGE}" == "true" ]]; then
-    rm -rf "${REPO_DIR}/data/memory"
-    echo "  ✓ Removed data/memory/ (--purge)"
-  else
-    echo ""
-    echo "  ⚠️  data/memory/projects/<id>/MEMORY.md preserved (user data)."
-    echo "      Pass --purge to delete."
-  fi
-fi
-
-# 4. data/memory.db
-if [[ -f "${REPO_DIR}/data/memory.db" ]]; then
-  rm -f "${REPO_DIR}/data/memory.db" "${REPO_DIR}/data/memory.db-wal" "${REPO_DIR}/data/memory.db-shm" 2>/dev/null || true
-  echo "  ✓ Removed data/memory.db (regenerated on next install)"
-fi
+echo "→ Cleaning dist..."
+rm -rf "${REPO_DIR}/memory-plugin/dist"
+echo "  ✓ dist/ removed"
 
 echo ""
-echo "✅ memory-plugin v2 uninstalled."
-echo "Restart opencode to unload the plugin."
+echo "✅ memory-plugin v3 uninstalled."
+echo ""
+echo "Note: data/memory-plugin.db and data/memory/ are preserved."
+echo "To clean them: rm -rf data/memory-plugin.db data/memory/"
