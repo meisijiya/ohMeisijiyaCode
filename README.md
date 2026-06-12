@@ -4,7 +4,7 @@
 [![English](https://img.shields.io/badge/EN-English-blue)](./README.md)
 [![中文](https://img.shields.io/badge/中文-Chinese-red)](./README.zh-CN.md)
 
-> A lightweight opencode Agent system built on **[Superpowers](https://github.com/obra/superpowers)** (14 workflow orchestration skills) — featuring **1 + 1 + 1 architecture** + **3-tier model routing** (high / mid / low) + **CLI-first external capabilities**. Synthesizing ideas from [Pi Subagents](https://github.com/mattpocock/skills) (frontmatter nesting + bash safety), [Matt Pocock's diagnostic suite](https://github.com/mattpocock/skills), [karpathy-guidelines](https://github.com/multica-ai/andrej-karpathy-skills) (coding discipline), [OpenSpec](https://github.com/Fission-AI/OpenSpec) (spec-driven changes), [oh-my-openagent](https://github.com/code-yeongyu/oh-my-openagent) (architecture inspiration), and [RTK](https://github.com/rtk-ai/rtk) (token compression).
+> A lightweight opencode Agent system built on **[Superpowers](https://github.com/obra/superpowers)** (14 workflow orchestration skills) — featuring **1 + 1 + 1 architecture** + **3-tier model routing** (high / mid / low) + **CLI-first external capabilities** + **responsibility-proximity principle** (each agent declares its own boundaries in-prompt, not in external AGENTS.md). Synthesizing ideas from [Pi Subagents](https://github.com/mattpocock/skills) (frontmatter nesting + bash safety), [Matt Pocock's diagnostic suite](https://github.com/mattpocock/skills), [karpathy-guidelines](https://github.com/multica-ai/andrej-karpathy-skills) (coding discipline), [OpenSpec](https://github.com/Fission-AI/OpenSpec) (spec-driven changes), [oh-my-openagent](https://github.com/code-yeongyu/oh-my-openagent) (architecture inspiration), and [RTK](https://github.com/rtk-ai/rtk) (token compression).
 
 ---
 
@@ -335,12 +335,15 @@ We apply insights from [BV1v9ER68EJE](https://www.bilibili.com/video/BV1v9ER68EJ
 
 | Insight | Applied |
 |---------|--------|
-| **U-shape attention curve** (>50% context → only end matters) | `<style_guide>` is the LAST segment in all 3 agent prompts; HTML comment block at Sisyphus tail emphasizes "关键尾部提示词" |
-| **Hard constraints (never/always/must/绝对不要)** | Rewrote all 3 agents' `style_guide` with strong vocabulary + 反例/正例 |
-| **Skill files ≤ 300-500 lines** | All skills under 250 lines; Sisyphus.md at 363 (acceptable) |
-| **Solutions 1+2+3+4** (AGENTS.md + Scan + Hooks + SubAgent isolation) | All present: orchestrator plugin (`experimental.chat.system.transform`) is our "Hook"; subagent isolation is core to 1+1+1 architecture |
-| **Anti-compaction-passive** (don't wait for quality to drop) | 3-piece verification (`<delegation_review>`) catches issues early per-call |
+| **U-shape attention curve** (>50% context → only end matters) | `<style_guide>` is the LAST segment in all 3 agent prompts; **HTML comment block at tail** of all 3 agents (Sisyphus: 5 rules / Lyra: 4 / Hephaestus: 4) is the high-attention "anchor" |
+| **Hard constraints (never/always/must/绝对不要)** | Rewrote all 3 agents' `style_guide` with strong vocabulary + 反例/正例; tail HTML blocks use `**bold**` emphasis + parenthetical rationale |
+| **Skill files ≤ 300-500 lines** | All skills under 250 lines; **Sisyphus.md now 253 lines** (down from 363 — 148 lines of hardcoded protocol moved to superpowers skill injection) |
+| **Solutions 1+2+3+4** (AGENTS.md + Scan + Hooks + SubAgent isolation) | All present: orchestrator plugin (`experimental.chat.system.transform`) is our "Hook"; subagent isolation is core to 1+1+1 architecture; **responsibility-proximity principle** (each agent declares its own `<responsibility_boundary>` block — no external AGENTS.md) |
+| **Anti-compaction-passive** (don't wait for quality to drop) | **Real failure case**: Sisyphus 363-line prompt got 148-line protocol swallowed mid-prompt; used `task-dispatch` tool instead of `task` tool. Fix: sink protocol to superpowers skill (real-time injection), keep only hard constraints in U型注意力 tail |
 | **Soft constraints = no constraints** | `bash: *: allow` (project-internal trust) + hard deny blacklists (not "尽量") |
+| **Responsibility-proximity principle** (NEW) | Each agent's "I am" declaration lives **inside** its own prompt (`<responsibility_boundary>` block). External doc references risk being swallowed by U型注意力 — self-contained is the only reliable position |
+| **Mechanism-vs-decoration layering** (NEW) | Sisyphus prompt = **Static layer** (route judgment / style / hard constraints) + **Dynamic layer** (delegation protocol injected by superpowers skill). Static is short, high-signal, lives at tail |
+| **6-block structural symmetry** (NEW) | All 3 agent prompts share: `role` / `responsibility_boundary` / `capabilities` / `style_guide` + tail HTML block. Differences are content (business capability, tool list, style), not structure. Grep-auditable across agents |
 
 ---
 
@@ -382,6 +385,26 @@ We apply insights from [BV1v9ER68EJE](https://www.bilibili.com/video/BV1v9ER68EJ
 | TEST_BOILERPLATE | test scaffolding | **Hephaestus** | low | no |
 
 **Core principle**: **Reasoning complexity** (not file count) determines the tier.
+
+### Agent 职责矩阵（Responsibility-Proximity Principle）
+
+每个 agent **就近声明**自己的职责边界（`<responsibility_boundary>` 块）——不依赖外部 AGENTS.md。**U 型注意力原理**：agent 自己的"我是谁"放在自己提示词里永远不被吞。
+
+| Agent | Tier | 上下文模式 | ✅ 我能做 | ❌ 我必须委派 / 不能做 |
+|-------|------|-----------|-----------|----------------------|
+| **Sisyphus** | high | 主 agent（承载完整会话）| 架构决策 + 复杂推理 + **单文件 ≤10 行的小改** | 跨多文件改动 / 复杂调研 / 简单搜集资料 / CRUD |
+| **Lyra** | mid | 纯净 subagent（不继承主会话）| 复杂调研 + 多文件实现 + 中等 bug + 结构化输出 | 架构决策 / 简单 CRUD / 简单搜集资料 |
+| **Hephaestus** | low | 纯净 subagent 叶子（不可再委派）| 简单搜集（mmx search CLI）+ CRUD 脚手架 + 原子重构 + 测试 boilerplate | 复杂调研 / 架构决策 / 委派子 agent |
+
+**判定规则**（明确边界，避免 Agent 抢活）：
+- Sisyphus 写代码仅限"**当前 turn 用户直接要求 + ≤1 文件 + ≤10 行**"（与 intent_gate 的 DEBUG_SIMPLE 对齐）
+- 简单搜集资料（mmx search）→ **Hephaestus**（不是 Lyra，也不是 Sisyphus）
+- 复杂调研（多步 + 需要分析）→ **Lyra**（不是 Sisyphus，也不是 Hephaestus）
+- 跨多文件改动 → **Lyra**（多文件设计）或 **Hephaestus**（机械批量）
+
+**U 型注意力对齐**：3 个 agent 都遵循 6 块对称结构（`role` / `responsibility_boundary` / `capabilities` / `style_guide` + 末尾 HTML 铁律）——差异仅在**内容**（业务能力、工具列表、风格细节），不在**结构**。
+
+> **设计原则**：6 块对称结构 + 职责就近 + 末尾铁律 = 抵御 U 型注意力吞掉关键信息的"三重保险"。
 
 ---
 
