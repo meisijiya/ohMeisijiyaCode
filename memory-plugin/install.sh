@@ -4,7 +4,8 @@
 # v3 changes from v2:
 # - No I/O at install time (migrations run lazily in hooks)
 # - Uses data/memory-plugin.db (not data/memory.db)
-# - Minimal plugin: session.created + session.idle hooks only
+# - Portable: works in any directory (global plugin install)
+# - Full feature parity: hooks + search + curator agent
 #
 # Usage: bash memory-plugin/install.sh
 # Uninstall: bash memory-plugin/uninstall.sh
@@ -13,6 +14,7 @@ set -euo pipefail
 
 REPO_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 PLUGIN_SRC="${REPO_DIR}/memory-plugin/src/memory-plugin.ts"
+MEMORY_SRC="${REPO_DIR}/memory-plugin/src/memory.ts"
 PLUGIN_DIST="${REPO_DIR}/memory-plugin/dist"
 GLOBAL_PLUGINS_DIR="${XDG_CONFIG_HOME:-$HOME/.config}/opencode/plugins"
 
@@ -33,6 +35,14 @@ bun build "${PLUGIN_SRC}" \
   --outfile "${PLUGIN_DIST}/memory-plugin.js" \
   --external "@opencode-ai/plugin"
 echo "  ✓ Built: dist/memory-plugin.js"
+
+if [[ -f "${MEMORY_SRC}" ]]; then
+  bun build "${MEMORY_SRC}" \
+    --target=bun \
+    --outfile "${PLUGIN_DIST}/memory.js" \
+    --external "@opencode-ai/plugin" 2>/dev/null || true
+  echo "  ✓ Built: dist/memory.js"
+fi
 
 # 2. Project-local symlink (opencode auto-discovers .opencode/plugins/)
 mkdir -p "${REPO_DIR}/.opencode/plugins"
