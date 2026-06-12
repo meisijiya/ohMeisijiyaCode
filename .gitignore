@@ -21,3 +21,8 @@ dist/
 
 # OpenSpec workspace (per-project change artifacts)
 openspec/
+.opencode/plugins/memory-plugin.js
+.agents/
+.playwright-cli/
+data/
+skills-lock.json
