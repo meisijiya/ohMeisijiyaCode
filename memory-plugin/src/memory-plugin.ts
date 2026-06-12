@@ -38,7 +38,6 @@ const DEFAULT_CONFIG: MemoryConfig = {
 // ---- Lazy state ----
 let _db: Database | null = null
 let _cfg: MemoryConfig | null = null
-const _assistantMsgIds = new Set<string>()  // track which message IDs are assistant
 
 function getConfig(project: any): MemoryConfig {
   if (_cfg) return _cfg
@@ -198,11 +197,7 @@ export const MemoryPlugin: Plugin = async (ctx) => {
         }
 
         if (event.type === "message.updated") {
-          // Track assistant message IDs for part filtering
-          const info = (event as any).properties?.info
-          if (info?.role === "assistant" && info.id) {
-            _assistantMsgIds.add(info.id)
-          }
+          // Metadata-only event — actual text comes via message.part.updated
         }
 
         if (event.type === "message.part.updated") {
@@ -211,10 +206,7 @@ export const MemoryPlugin: Plugin = async (ctx) => {
           if (!props) return
           const part = props.part
           if (!part || part.type !== "text" || !part.text) return
-          // Only queue assistant text (not user input)
-          const msgId = part.messageID ?? ""
-          if (msgId && !_assistantMsgIds.has(msgId)) return
-          appendToQueue(cfg, projectDir, props.sessionID ?? "?", msgId, part.text)
+          appendToQueue(cfg, projectDir, props.sessionID ?? "?", part.messageID ?? "?", part.text)
         }
 
         if (event.type === "session.idle") {
