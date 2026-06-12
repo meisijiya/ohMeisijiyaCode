@@ -153,6 +153,23 @@ export const MemoryPlugin: Plugin = async (ctx) => {
   const project = (ctx as any).project
   const projectDir = project?.worktree ?? project?.directory ?? process.cwd()
 
+  // === Self-test markers (v2.0) ===
+  // Write a load-marker so the user can verify the plugin actually loaded
+  // (the 13:23 init log was from a different opencode run; the user's actual
+  //  session may not have shown any signal). Marker is harmless and
+  // gitignored.
+  try {
+    const fs = require("fs")
+    const markerDir = join(projectDir, "data", "memory")
+    mkdirSync(markerDir, { recursive: true })
+    fs.writeFileSync(
+      join(markerDir, `.plugin-loaded-${Date.now()}`),
+      `v2 plugin loaded\nprojectDir=${projectDir}\n`,
+    )
+  } catch (e) {
+    // ignore marker write failure
+  }
+
   return {
     "message.updated": async (input: any) => {
       try {
@@ -202,6 +219,16 @@ export const MemoryPlugin: Plugin = async (ctx) => {
           } else if (output?.system_prompt !== undefined) {
             output.system_prompt = block + "\n\n" + output.system_prompt
           }
+        }
+        // === Self-test marker for session.created hook firing ===
+        try {
+          const fs = require("fs")
+          fs.writeFileSync(
+            join(dir, `.session-created-${Date.now()}`),
+            `session.id=${input?.sessionID ?? "?"}\nblock_chars=${block.length}\n`,
+          )
+        } catch (e) {
+          // ignore
         }
         db.close()
       } catch (e) {
