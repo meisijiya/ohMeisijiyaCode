@@ -5,14 +5,15 @@
  * - No I/O in plugin constructor (fixes v2 TUI bootstrap failure)
  * - Lazy-init Database on first hook invocation
  * - Uses data/memory-plugin.db (not data/memory.db)
- * - All session events via generic `event` handler
- * - Memory injection via `experimental.session.compacting` hook
+ * - Structured logging via client.app.log() (persistent, survives restart)
+ * - Marker files auto-cleaned (keeps last 20)
+ * - Disable per-project: {"memory": {"enabled": false}} in .opencode/opencode.json
  *
  * Reference: docs/superpowers/specs/2026-06-12-v2-test-pitfalls.md
  */
 import type { Plugin } from "@opencode-ai/plugin"
 import { Database } from "bun:sqlite"
-import { existsSync, mkdirSync, writeFileSync, readFileSync, appendFileSync } from "fs"
+import { existsSync, mkdirSync, writeFileSync, readFileSync, appendFileSync, readdirSync, unlinkSync } from "fs"
 import { join, dirname } from "path"
 import { fileURLToPath } from "url"
 import { migrate } from "./lib/migrate"
@@ -38,6 +39,7 @@ const DEFAULT_CONFIG: MemoryConfig = {
 // ---- Lazy state ----
 let _db: Database | null = null
 let _cfg: MemoryConfig | null = null
+let _client: any = null  // opencode SDK client for structured logging
 
 function getConfig(project: any): MemoryConfig {
   if (_cfg) return _cfg
@@ -46,18 +48,32 @@ function getConfig(project: any): MemoryConfig {
   return _cfg
 }
 
+// ---- Structured logging ----
+type LogLevel = "debug" | "info" | "warn" | "error"
+
+/** Write to opencode's persistent log. Falls back to console if client unavailable. */
+function log(level: LogLevel, message: string, extra?: Record<string, unknown>): void {
+  if (_client?.app?.log) {
+    // fire-and-forget: don't await log writes
+    _client.app.log({ body: { service: "memory-plugin", level, message, ...(extra ? { extra } : {}) } }).catch(() => {})
+  }
+  // Fallback for when opencode client isn't available yet
+  if (level === "error") console.error(`[memory-plugin v3] ${level}: ${message}`)
+}
+
+// ---- Data helpers ----
+
 function getDb(projectDir: string): Database {
   if (_db) return _db
   const cfg = getConfig(null!)
   const dbPath = join(projectDir, cfg.db)
-  // Ensure parent dir exists (DB file is inside data/, which may not exist yet)
   const dbDir = dirname(dbPath)
   if (!existsSync(dbDir)) mkdirSync(dbDir, { recursive: true })
   _db = new Database(dbPath)
-  // Resolve migration dir from plugin's actual file location (follows symlinks)
   const pluginDir = dirname(fileURLToPath(import.meta.url))
   const migrationDir = join(pluginDir, "..", "migration")
   migrate(_db, migrationDir)
+  log("info", "DB initialized", { dbPath, tables: 10 })
   return _db
 }
 
@@ -82,20 +98,25 @@ function ensureMemoryMd(memoryDir: string): string {
       "",
     ].join("\n")
     writeFileSync(mdPath, template)
+    log("info", "MEMORY.md created", { path: mdPath })
   }
   return mdPath
 }
 
 function appendToQueue(cfg: MemoryConfig, projectDir: string, sessionId: string, messageId: string, text: string): void {
   if (!text.trim()) return
-  const queuePath = join(projectDir, cfg.root, "queue.jsonl")
-  const dir = dirname(queuePath)
-  if (!existsSync(dir)) mkdirSync(dir, { recursive: true })
-  // message.part.updated fires per chunk — store each chunk, don't dedup
-  const entry = JSON.stringify({ session_id: sessionId, message_id: messageId, part_text: text, time: Date.now() })
-  appendFileSync(queuePath, entry + "\n")
+  try {
+    const queuePath = join(projectDir, cfg.root, "queue.jsonl")
+    const dir = dirname(queuePath)
+    if (!existsSync(dir)) mkdirSync(dir, { recursive: true })
+    const entry = JSON.stringify({ session_id: sessionId, message_id: messageId, part_text: text, time: Date.now() })
+    appendFileSync(queuePath, entry + "\n")
+  } catch (e) {
+    log("error", "appendToQueue failed", { sessionId, messageId, error: (e as Error).message })
+  }
 }
 
+/** Write diagnostic marker. Keep last 20, auto-clean older ones. */
 function writeMarker(projectDir: string, hook: string, details?: Record<string, unknown>): void {
   try {
     const markerDir = join(projectDir, "data", "memory")
@@ -104,7 +125,16 @@ function writeMarker(projectDir: string, hook: string, details?: Record<string, 
       join(markerDir, `.hook-${hook}-${Date.now()}`),
       JSON.stringify({ plugin: "v3-long-term-memory", hook, ts: Date.now(), projectDir, ...details }, null, 2) + "\n",
     )
-  } catch { /* best-effort */ }
+    // Cleanup: keep last 20 markers, delete oldest
+    const prefix = ".hook-"
+    const files = readdirSync(markerDir)
+      .filter((f) => f.startsWith(prefix))
+      .sort()  // ascending by timestamp (lexicographic = chronological for ISO timestamps)
+    while (files.length > 20) {
+      const oldest = files.shift()!
+      try { unlinkSync(join(markerDir, oldest)) } catch { /* best-effort */ }
+    }
+  } catch { /* best-effort diagnostics */ }
 }
 
 function buildInjectionBlock(cfg: MemoryConfig, projectDir: string): string {
@@ -127,7 +157,13 @@ export const MemoryPlugin: Plugin = async (ctx) => {
   // ctx.directory first: it's always the project dir. ctx.worktree may be "/" for non-git dirs.
   const projectDir: string = (ctx as any).directory ?? (ctx as any).worktree ?? process.cwd()
   const cfg = getConfig((ctx as any).project)
-  if (!cfg.enabled) return {}
+  _client = (ctx as any).client  // capture for structured logging
+
+  if (!cfg.enabled) {
+    return {}  // Plugin disabled per-project via {"memory": {"enabled": false}}
+  }
+
+  log("info", "plugin loaded", { projectDir, injectionBudget: cfg.injection.budgetTokens })
 
   return {
     /**
@@ -138,26 +174,23 @@ export const MemoryPlugin: Plugin = async (ctx) => {
         const block = buildInjectionBlock(cfg, projectDir)
         if (block && output?.context) {
           output.context.push(block)
+          log("debug", "memory injected into compaction", { blockChars: block.length })
         }
       } catch (e) {
-        console.error("[memory-plugin v3] compacting error:", e)
+        log("error", "compaction hook failed", { error: (e as Error).message })
       }
     },
 
     /**
      * /dream command: force full curator reconcile.
-     * Catches tui.command.execute and triggers the memory-curator agent.
      */
     "tui.command.execute": async (input: any) => {
       try {
         if (input?.command !== "/dream") return
-        getDb(projectDir)  // ensure DB is alive
-          writeMarker(projectDir, "dream", {
-            command: "/dream",
-            triggeredBy: input?.sessionID ?? "?",
-          })
+        getDb(projectDir)
+        writeMarker(projectDir, "dream", { triggeredBy: input?.sessionID ?? "?" })
+        log("info", "/dream triggered")
 
-          // Attempt to spawn memory-curator as background subagent
         const { client } = ctx as any
         if (client?.tool?.invoke) {
           await client.tool.invoke("task-dispatch", {
@@ -175,9 +208,9 @@ export const MemoryPlugin: Plugin = async (ctx) => {
           } as any).catch(() => {})
         }
 
-        return { output: "✓ /dream: curator dispatched (background). Check data/memory/.hook-dream-* for marker." }
+        return { output: "✓ /dream: curator dispatched (background)." }
       } catch (e) {
-        console.error("[memory-plugin v3] /dream error:", e)
+        log("error", "/dream hook failed", { error: (e as Error).message })
         return { output: `✗ /dream failed: ${(e as Error).message}` }
       }
     },
@@ -188,16 +221,16 @@ export const MemoryPlugin: Plugin = async (ctx) => {
     event: async ({ event }: { event: { type: string; [key: string]: unknown } }) => {
       try {
         if (event.type === "session.created") {
-          getDb(projectDir)  // lazy-init DB
+          getDb(projectDir)
           const mDir = memoryDir(cfg, projectDir)
-          ensureMemoryMd(mDir)  // ensure MEMORY.md exists
+          ensureMemoryMd(mDir)
           writeMarker(projectDir, "session.created", {
             sessionId: (event as any).sessionID ?? "?",
           })
         }
 
         if (event.type === "message.updated") {
-          // Metadata-only event — actual text comes via message.part.updated
+          // Metadata-only — text comes via message.part.updated
         }
 
         if (event.type === "message.part.updated") {
@@ -217,7 +250,7 @@ export const MemoryPlugin: Plugin = async (ctx) => {
           writeMarker(projectDir, "session.compacted", {})
         }
       } catch (e) {
-        console.error("[memory-plugin v3] event error:", e)
+        log("error", "event handler failed", { eventType: event.type, error: (e as Error).message })
       }
     },
   }
