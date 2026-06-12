@@ -5,6 +5,7 @@
  * - No I/O in plugin constructor (defer to hooks)
  * - Lazy-init Database on first hook invocation
  * - Uses data/memory-plugin.db (not data/memory.db, avoid bun:sqlite conflict)
+ * - Uses generic `event` handler pattern (matches official plugin docs)
  * - Starts with minimal session.created hook; other hooks added incrementally
  *
  * Reference: docs/superpowers/specs/2026-06-12-v2-test-pitfalls.md
@@ -21,12 +22,16 @@ let _db: Database | null = null
 /**
  * Lazy-init the SQLite database.
  * Only called on first hook invocation, never in plugin constructor.
+ * Explicitly passes migration dir because `import.meta.dir` differs between
+ * source (src/lib/) and built (dist/) paths.
  */
 function getDb(projectDir: string): Database {
   if (_db) return _db
   const dbPath = join(projectDir, "data", "memory-plugin.db")
   _db = new Database(dbPath)
-  migrate(_db)
+  // Resolve migration dir from project root (works in both source and built contexts)
+  const migrationDir = join(projectDir, "memory-plugin", "migration")
+  migrate(_db, migrationDir)
   return _db
 }
 
@@ -59,11 +64,10 @@ function writeMarker(projectDir: string, hook: string, details?: Record<string, 
 
 export const MemoryPlugin: Plugin = async (ctx) => {
   // ---- CONSTRUCTOR: ZERO I/O ----
-  // Only read config and stash context. No fs, no DB, no network.
   const project = (ctx as any).project
   const projectDir: string = project?.worktree ?? project?.directory ?? process.cwd()
   const cfg = project?.config?.memory ?? {}
-  const enabled = cfg.enabled !== false // enabled by default
+  const enabled = cfg.enabled !== false
 
   if (!enabled) {
     return {}
@@ -71,35 +75,26 @@ export const MemoryPlugin: Plugin = async (ctx) => {
 
   // ---- HOOKS ----
   return {
-    /**
-     * session.created: diagnostic-only hook for v3.
-     * Writes a marker file to verify plugin is alive and TUI works.
-     * Will be expanded in v3.1+ to inject top-N memory into system_prompt.
-     */
-    "session.created": async (input: any) => {
+    /** Generic event listener — session events work through this pattern per official docs */
+    event: async ({ event }: { event: { type: string; [key: string]: unknown } }) => {
       try {
-        const db = getDb(projectDir)
-        writeMarker(projectDir, "session.created", {
-          sessionId: input?.sessionID ?? "?",
-          dbOpen: db != null,
-          tableCount: (db.query("SELECT count(*) as c FROM memory_fts").get() as any)?.c ?? 0,
-        })
-        console.log("[memory-plugin v3] session.created ✓")
-      } catch (e) {
-        console.error("[memory-plugin v3] session.created error:", e)
-      }
-    },
+        if (event.type === "session.created") {
+          const db = getDb(projectDir)
+          const sessionID = (event as any).sessionID ?? "?"
+          writeMarker(projectDir, "session.created", {
+            sessionId: sessionID,
+            dbOpen: db != null,
+            tableCount: (db.query("SELECT count(*) as c FROM memory_fts").get() as any)?.c ?? 0,
+          })
+          console.log("[memory-plugin v3] session.created ✓")
+        }
 
-    /**
-     * session.idle: fire-and-forget marker for v3.
-     * Full curator dispatch to be added in v3.1+.
-     */
-    "session.idle": async () => {
-      try {
-        writeMarker(projectDir, "session.idle", {})
-        console.log("[memory-plugin v3] session.idle ✓")
-      } catch {
-        // ignore
+        if (event.type === "session.idle") {
+          writeMarker(projectDir, "session.idle", {})
+          console.log("[memory-plugin v3] session.idle ✓")
+        }
+      } catch (e) {
+        console.error("[memory-plugin v3] event error:", e)
       }
     },
   }
