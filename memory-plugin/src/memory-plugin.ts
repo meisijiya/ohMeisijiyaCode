@@ -14,6 +14,7 @@ import type { Plugin } from "@opencode-ai/plugin"
 import { Database } from "bun:sqlite"
 import { existsSync, mkdirSync, writeFileSync, readFileSync, appendFileSync } from "fs"
 import { join, dirname } from "path"
+import { fileURLToPath } from "url"
 import { migrate } from "./lib/migrate"
 import { parseMemory, renderEntry } from "./lib/memory-parse"
 import { selectTopN, type Entry } from "./lib/importance"
@@ -49,8 +50,13 @@ function getDb(projectDir: string): Database {
   if (_db) return _db
   const cfg = getConfig(null!)
   const dbPath = join(projectDir, cfg.db)
+  // Ensure parent dir exists (DB file is inside data/, which may not exist yet)
+  const dbDir = dirname(dbPath)
+  if (!existsSync(dbDir)) mkdirSync(dbDir, { recursive: true })
   _db = new Database(dbPath)
-  const migrationDir = join(projectDir, "memory-plugin", "migration")
+  // Resolve migration dir from plugin's actual file location (follows symlinks)
+  const pluginDir = dirname(fileURLToPath(import.meta.url))
+  const migrationDir = join(pluginDir, "..", "migration")
   migrate(_db, migrationDir)
   return _db
 }
