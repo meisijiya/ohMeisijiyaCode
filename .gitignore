@@ -21,3 +21,11 @@ dist/
 
 # OpenSpec workspace (per-project change artifacts)
 openspec/
+
+# v2 memory system runtime data (regenerated)
+data/memory.db
+data/memory.db-journal
+data/memory.db-wal
+data/memory.db-shm
+data/memory/queue.jsonl
+.playwright-cli/
