@@ -248,3 +248,12 @@ echo "  AGENTS.md (global):"
 if [[ -f "${GLOBAL_AGENTS}" ]]; then
   echo "    $(basename "${GLOBAL_AGENTS}")  ← $(wc -l < "${GLOBAL_AGENTS}" | tr -d ' ') lines"
 fi
+
+# Optional: enable async delegation (background subagents) via env var.
+# opencode reads OPENCODE_EXPERIMENTAL at startup; without it,
+# task-dispatch(mode=background) will fail at runtime.
+# We do NOT modify the user's shell init — just remind them.
+echo ""
+echo "💡 To enable async delegation (background subagents), set:"
+echo "    export OPENCODE_EXPERIMENTAL=true"
+echo "  Add to your shell init (~/.bashrc / ~/.zshrc) or project .env."
