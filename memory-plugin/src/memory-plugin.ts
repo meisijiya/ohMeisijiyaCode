@@ -135,7 +135,6 @@ export const MemoryPlugin: Plugin = async (ctx) => {
   return {
     /**
      * experimental.session.compacting: inject project memory into compaction context.
-     * Uses named hook pattern because we need to modify `output.context`.
      */
     "experimental.session.compacting": async (input: any, output: any) => {
       try {
@@ -146,6 +145,45 @@ export const MemoryPlugin: Plugin = async (ctx) => {
         }
       } catch (e) {
         console.error("[memory-plugin v3] compacting error:", e)
+      }
+    },
+
+    /**
+     * /dream command: force full curator reconcile.
+     * Catches tui.command.execute and triggers the memory-curator agent.
+     */
+    "tui.command.execute": async (input: any) => {
+      try {
+        if (input?.command !== "/dream") return
+        getDb(projectDir)  // ensure DB is alive
+        writeMarker(projectDir, "dream", {
+          command: "/dream",
+          triggeredBy: input?.sessionID ?? "?",
+        })
+        console.log("[memory-plugin v3] /dream triggered ✓")
+
+        // Attempt to spawn memory-curator as background subagent
+        const { client } = ctx as any
+        if (client?.tool?.invoke) {
+          await client.tool.invoke("task-dispatch", {
+            subagent_type: "lyra",
+            description: "memory curator full reconcile",
+            prompt: [
+              `/dream triggered by user.`,
+              `Project directory: ${projectDir}`,
+              `Force full reconcile — walk all sessions, verify each candidate against trajectory, no incremental optimization.`,
+              `Read data/memory/queue.jsonl for recent content.`,
+              `Read data/memory/projects/*/MEMORY.md for current state.`,
+              `Follow the 5-phase workflow defined in memory-plugin/agents/memory-curator.md.`,
+            ].join("\n"),
+            background: true,
+          } as any).catch(() => {})
+        }
+
+        return { output: "✓ /dream: curator dispatched (background). Check data/memory/.hook-dream-* for marker." }
+      } catch (e) {
+        console.error("[memory-plugin v3] /dream error:", e)
+        return { output: `✗ /dream failed: ${(e as Error).message}` }
       }
     },
 
