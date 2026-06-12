@@ -91,10 +91,7 @@ function appendToQueue(cfg: MemoryConfig, projectDir: string, sessionId: string,
   const queuePath = join(projectDir, cfg.root, "queue.jsonl")
   const dir = dirname(queuePath)
   if (!existsSync(dir)) mkdirSync(dir, { recursive: true })
-  if (existsSync(queuePath)) {
-    const lines = readFileSync(queuePath, "utf-8").split("\n").filter(Boolean)
-    if (lines.some((l) => l.includes(`"message_id":"${messageId}"`))) return
-  }
+  // message.part.updated fires per chunk — store each chunk, don't dedup
   const entry = JSON.stringify({ session_id: sessionId, message_id: messageId, part_text: text, time: Date.now() })
   appendFileSync(queuePath, entry + "\n")
 }
@@ -200,24 +197,16 @@ export const MemoryPlugin: Plugin = async (ctx) => {
         }
 
         if (event.type === "message.updated") {
-          const ev = event as any
-          const info = ev.properties?.info
-          if (!info || info.role !== "assistant") return
-          // message.updated only has metadata. Actual text comes via message.part.updated.
-          // We just note the message here; text is accumulated in message.part.updated handler.
+          // Metadata-only event — actual text comes via message.part.updated
         }
 
         if (event.type === "message.part.updated") {
           const ev = event as any
           const props = ev.properties
           if (!props) return
-          // message.part.updated fires per chunk.
-          const text: string = props.text ?? props.content ?? props.info?.text ?? ""
-          if (!text) {
-            console.error("[memory-plugin v3] part-updated props keys:", Object.keys(props).join(","))
-            return
-          }
-          appendToQueue(cfg, projectDir, props.sessionID ?? "?", props.messageID ?? props.id ?? "?", text)
+          const part = props.part
+          if (!part || part.type !== "text" || !part.text) return
+          appendToQueue(cfg, projectDir, props.sessionID ?? "?", part.messageID ?? "?", part.text)
         }
 
         if (event.type === "session.idle") {
