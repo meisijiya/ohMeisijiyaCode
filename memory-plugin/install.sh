@@ -37,11 +37,17 @@ bun build "${REPO_DIR}/memory-plugin/src/memory.ts" \
   --outfile "${PLUGIN_DIST}/memory.js"
 echo "  ✓ Built: dist/memory-plugin.js, dist/memory.js"
 
-# 2. Create symlink
+# 2. Create symlinks (project-local + global)
 mkdir -p "${REPO_DIR}/.opencode/plugins"
 ln -sf "../../memory-plugin/dist/memory-plugin.js" \
   "${REPO_DIR}/.opencode/plugins/memory-plugin.js"
 echo "  ✓ Symlink: .opencode/plugins/memory-plugin.js"
+
+GLOBAL_PLUGINS_DIR="${XDG_CONFIG_HOME:-$HOME/.config}/opencode/plugins"
+mkdir -p "${GLOBAL_PLUGINS_DIR}"
+ln -sf "${PLUGIN_DIST}/memory-plugin.js" \
+  "${GLOBAL_PLUGINS_DIR}/memory-plugin.js"
+echo "  ✓ Symlink: ${GLOBAL_PLUGINS_DIR}/memory-plugin.js"
 
 # 3. Create data dirs
 mkdir -p "${REPO_DIR}/data/memory/projects"
