@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# uninstall.sh — Remove myOpenCodeWithMEeee files from ~/.config/opencode/
+# uninstall.sh — Remove ohMeisijiyaCode files from ~/.config/opencode/
 #
 # Removes only files this project installed, and the matching entry from
 # opencode.json's `plugin` array (if it was registered by install.sh).
@@ -18,7 +18,7 @@ TARGET_DIR="${XDG_CONFIG_HOME:-$HOME/.config}/opencode"
 OPENCODE_CONFIG="${TARGET_DIR}/opencode.json"
 PLUGIN_ENTRY="plugins/orchestrator.js"
 
-echo "Uninstalling myOpenCodeWithMEeee from ${TARGET_DIR}"
+echo "Uninstalling ohMeisijiyaCode from ${TARGET_DIR}"
 echo ""
 
 # Helper: rm -f a file under TARGET_DIR, tolerating missing files

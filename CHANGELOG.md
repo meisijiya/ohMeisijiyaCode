@@ -1,12 +1,12 @@
 # Changelog
 
-> **myOpenCodeWithMEeee** — 定制化 1+1+1 (主 Agent + 助手 + Worker) 三档分级 Agent 系统 for opencode。  
+> **ohMeisijiyaCode** — 定制化 1+1+1 (主 Agent + 助手 + Worker) 三档分级 Agent 系统 for opencode。  
 > 从 v1 (Sisyphus + Oracle, 9 自建工具) 演进至 v2 (Sisyphus + Lyra + Hephaestus, 2 自建工具 + 3 MCP)。
 
 ## [v2] — 2026-06-10
 
 ### 🏛️ 架构 (Architecture)
-- **项目脚手架:** 初始化 `myOpenCodeWithMEeee` 项目目录结构，包含 agents/、tools/、skills/、plugins/、docs/、openspec/ 等核心文件夹。
+- **项目脚手架:** 初始化 `ohMeisijiyaCode` 项目目录结构，包含 agents/、tools/、skills/、plugins/、docs/、openspec/ 等核心文件夹。
 - **安装脚本:** 实现 `install.sh` / `uninstall.sh`，支持幂等镜像安装至 `~/.config/opencode/`；修复安装中测试文件、占位文件和内部 helper 的排除逻辑，确保仅分发运行时文件。
 - **Orchestrator 插件 (v1 → v2):**
   - 初始版本实现 Boulder-style 自动续跑、关键词检测（`ultrawork`/`ulw`/`search`）和 karpathy-guidelines 注入；

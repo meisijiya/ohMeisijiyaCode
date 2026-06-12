@@ -7,7 +7,7 @@ metadata:
   sourceUrl: "https://github.com/addyosmani/agent-skills/blob/main/skills/source-driven-development/SKILL.md"
   lightweight: "true (verifies the principle, doesn't import the full skill)"
   trigger: "Lyra/Sisyphus about to use a non-trivial library API or uncertain framework behavior"
-  importedBy: "myOpenCodeWithMEeee v2.x"
+  importedBy: "ohMeisijiyaCode v2.x"
   apiBudget: "Context7 free tier: 1000 calls/month (~33/day). Don't waste."
 ---
 

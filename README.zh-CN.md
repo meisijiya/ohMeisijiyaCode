@@ -1,4 +1,4 @@
-# myOpenCodeWithMEeee
+# ohMeisijiyaCode
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](./LICENSE)
 [![English](https://img.shields.io/badge/EN-English-blue)](./README.md)
@@ -25,8 +25,8 @@
 ## ⚡ 一键安装
 
 ```bash
-git clone https://github.com/meisijiya/myOpenCodeWithMEeee.git
-cd myOpenCodeWithMEeee
+git clone https://github.com/meisijiya/ohMeisijiyaCode.git
+cd ohMeisijiyaCode
 bash install.sh
 ```
 
@@ -969,7 +969,7 @@ git add skills/ && git commit -m "chore(skills): sync N verbatim skills with ups
 ## 📁 仓库结构
 
 ```
-myOpenCodeWithMEeee/
+ohMeisijiyaCode/
 ├── agents/                 # 3 agent prompt 文件
 │   ├── sisyphus.md         # primary (high-tier) — 7 XML segments + 9-row routing
 │   ├── lyra.md             # subagent (mid-tier) — can delegate to Hephaestus

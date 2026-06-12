@@ -137,7 +137,7 @@ def fetch_upstream(skill):
     path = skill['source_path']
     url = f"https://api.github.com/repos/{repo}/contents/{path}"
     try:
-        req = urllib.request.Request(url, headers={'User-Agent': 'myOpenCodeWithMEeee-updater'})
+        req = urllib.request.Request(url, headers={'User-Agent': 'ohMeisijiyaCode-updater'})
         with urllib.request.urlopen(req, timeout=20) as resp:
             data = json.loads(resp.read())
     except urllib.error.HTTPError as e:
@@ -236,14 +236,14 @@ for skill in skills:
             # Re-fetch the dir to find sub-files
             dir_url = f"https://api.github.com/repos/{skill['source_repo']}/contents/{os.path.dirname(skill['source_path'])}"
             try:
-                req = urllib.request.Request(dir_url, headers={'User-Agent': 'myOpenCodeWithMEeee-updater'})
+                req = urllib.request.Request(dir_url, headers={'User-Agent': 'ohMeisijiyaCode-updater'})
                 with urllib.request.urlopen(req, timeout=20) as resp:
                     dir_data = json.loads(resp.read())
                 import base64
                 for item in dir_data:
                     if item['type'] == 'file' and item['name'] in skill['sub_files']:
                         sub_url = f"https://api.github.com/repos/{skill['source_repo']}/contents/{item['path']}"
-                        req2 = urllib.request.Request(sub_url, headers={'User-Agent': 'myOpenCodeWithMEeee-updater'})
+                        req2 = urllib.request.Request(sub_url, headers={'User-Agent': 'ohMeisijiyaCode-updater'})
                         with urllib.request.urlopen(req2, timeout=20) as resp2:
                             sub_data = json.loads(resp2.read())
                         sub_content = base64.b64decode(sub_data['content']).decode('utf-8')

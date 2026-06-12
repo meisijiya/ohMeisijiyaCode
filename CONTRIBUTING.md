@@ -1,10 +1,10 @@
-# Contributing to myOpenCodeWithMEeee
+# Contributing to ohMeisijiyaCode
 
 感谢你的贡献！以下规范确保协作高效。
 
 ## 如何提交 Issue
 
-在 [GitHub Issues](https://github.com/YOUR_USERNAME/myOpenCodeWithMEeee/issues) 提交，请包含：
+在 [GitHub Issues](https://github.com/YOUR_USERNAME/ohMeisijiyaCode/issues) 提交，请包含：
 
 - **环境信息**：操作系统、Node 版本、opencode 版本
 - **复现步骤**：从零出发的最小复现路径
