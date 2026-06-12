@@ -17,6 +17,8 @@ PLUGIN_SRC="${REPO_DIR}/memory-plugin/src/memory-plugin.ts"
 MEMORY_SRC="${REPO_DIR}/memory-plugin/src/memory.ts"
 PLUGIN_DIST="${REPO_DIR}/memory-plugin/dist"
 GLOBAL_PLUGINS_DIR="${XDG_CONFIG_HOME:-$HOME/.config}/opencode/plugins"
+GLOBAL_AGENTS_DIR="${XDG_CONFIG_HOME:-$HOME/.config}/opencode/agents"
+GLOBAL_COMMANDS_DIR="${XDG_CONFIG_HOME:-$HOME/.config}/opencode/commands"
 
 echo "🐘 Installing v3 long-term memory plugin → ${REPO_DIR}"
 echo ""
@@ -50,11 +52,23 @@ ln -sf "../../memory-plugin/dist/memory-plugin.js" \
   "${REPO_DIR}/.opencode/plugins/memory-plugin.js"
 echo "  ✓ Symlink: .opencode/plugins/memory-plugin.js"
 
-# 3. Global symlink (belt-and-suspenders)
+# 3. Global symlinks (belt-and-suspenders)
 mkdir -p "${GLOBAL_PLUGINS_DIR}"
 ln -sf "${PLUGIN_DIST}/memory-plugin.js" \
   "${GLOBAL_PLUGINS_DIR}/memory-plugin.js"
 echo "  ✓ Symlink: ${GLOBAL_PLUGINS_DIR}/memory-plugin.js"
+
+# 4. Register curator agent globally
+mkdir -p "${GLOBAL_AGENTS_DIR}"
+ln -sf "${REPO_DIR}/memory-plugin/agents/memory-curator.md" \
+  "${GLOBAL_AGENTS_DIR}/memory-curator.md"
+echo "  ✓ Symlink: ${GLOBAL_AGENTS_DIR}/memory-curator.md"
+
+# 5. Register /dream command globally
+mkdir -p "${GLOBAL_COMMANDS_DIR}"
+ln -sf "${REPO_DIR}/.opencode/commands/dream.md" \
+  "${GLOBAL_COMMANDS_DIR}/dream.md"
+echo "  ✓ Symlink: ${GLOBAL_COMMANDS_DIR}/dream.md"
 
 echo ""
 echo "✅ memory-plugin v3 installed."

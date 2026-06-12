@@ -8,10 +8,14 @@ set -euo pipefail
 
 REPO_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 GLOBAL_PLUGINS_DIR="${XDG_CONFIG_HOME:-$HOME/.config}/opencode/plugins"
+GLOBAL_AGENTS_DIR="${XDG_CONFIG_HOME:-$HOME/.config}/opencode/agents"
+GLOBAL_COMMANDS_DIR="${XDG_CONFIG_HOME:-$HOME/.config}/opencode/commands"
 
 echo "→ Removing symlinks..."
 rm -f "${REPO_DIR}/.opencode/plugins/memory-plugin.js"
 rm -f "${GLOBAL_PLUGINS_DIR}/memory-plugin.js"
+rm -f "${GLOBAL_AGENTS_DIR}/memory-curator.md"
+rm -f "${GLOBAL_COMMANDS_DIR}/dream.md"
 echo "  ✓ Symlinks removed"
 
 echo "→ Cleaning dist..."
