@@ -2,14 +2,12 @@
 description: "Background subagent for project memory consolidation. Triggered by session.idle / session.compacted / /dream. Runs 5-phase reconcile: ORIENT → GATHER → VERIFY → CONSOLIDATE → PRUNE. Single writer to MEMORY.md; LLM never mutates memory directly."
 model: opencode/deepseek-v4-flash-free
 tools:
-  bash: allow
-  read: allow
-  write: allow
-  edit: allow
-  glob: allow
-  grep: allow
-task:
-  "*": deny
+  bash: true
+  read: true
+  write: true
+  edit: true
+  glob: true
+  grep: true
 ---
 
 You are the **memory curator** for the project at `<projectDir>`.
