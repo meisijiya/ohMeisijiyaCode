@@ -29,6 +29,8 @@ interface MemoryConfig {
   root: string
   db: string
   injection: { budgetTokens: number }
+  /** User-turn threshold for forcing a full curator reconcile. Default 15. */
+  triggerThreshold: number
 }
 
 const DEFAULT_CONFIG: MemoryConfig = {
@@ -36,6 +38,7 @@ const DEFAULT_CONFIG: MemoryConfig = {
   root: "data/memory",
   db: "data/memory-plugin.db",
   injection: { budgetTokens: 3000 },
+  triggerThreshold: 15,
 }
 
 // ---- Lazy state ----
@@ -152,18 +155,69 @@ function buildInjectionBlock(cfg: MemoryConfig, projectDir: string): string {
   return `## 📚 Project Memory (auto-injected)\n\n${top.map((e) => e.body).join("\n")}\n\n---`
 }
 
+// ---- Curator turn counter (project-scoped, shared across sessions) ----
+interface CuratorCounterRow {
+  project_hash: string
+  turn_count: number
+  last_full_at: number | null
+  last_delta_at: number | null
+}
+
+/** Atomically increment turn counter for project. Returns new count. */
+function incrementTurnCount(db: Database, projectHash: string): number {
+  db.query(
+    `INSERT INTO memory_curator_counter (project_hash, turn_count, last_delta_at)
+     VALUES (?, 1, ?)
+     ON CONFLICT(project_hash) DO UPDATE SET
+       turn_count = turn_count + 1,
+       last_delta_at = ?`,
+  ).run(projectHash, Date.now(), Date.now())
+  const row = db
+    .query("SELECT turn_count FROM memory_curator_counter WHERE project_hash = ?")
+    .get(projectHash) as { turn_count: number } | null
+  return row?.turn_count ?? 0
+}
+
+/** Reset turn counter to 0 (called after a full reconcile is dispatched). */
+function resetTurnCount(db: Database, projectHash: string): void {
+  db.query(
+    `INSERT INTO memory_curator_counter (project_hash, turn_count, last_full_at)
+     VALUES (?, 0, ?)
+     ON CONFLICT(project_hash) DO UPDATE SET
+       turn_count = 0,
+       last_full_at = ?`,
+  ).run(projectHash, Date.now(), Date.now())
+}
+
+/** Read current turn count for a project (0 if never seen). */
+function getTurnCount(db: Database, projectHash: string): number {
+  const row = db
+    .query("SELECT turn_count FROM memory_curator_counter WHERE project_hash = ?")
+    .get(projectHash) as { turn_count: number } | null
+  return row?.turn_count ?? 0
+}
+
 /**
- * Spawn memory-curator subagent in background.
- * @param ctx opencode plugin context
- * @param projectDir project root
- * @param mode "delta" (session.idle) or "full" (session.compacted)
+ * Spawn memory-curator subagent in background via SubtaskPartInput.
+ *
+ * v3.1 fix: client.tool.invoke("task-dispatch", ...) was the v2 dispatch path
+ * but `tool` in opencode SDK only has `list()` / `ids()` — no `invoke()`.
+ * This silently failed for every session.idle / /dream, leaving queue.jsonl
+ * to accumulate indefinitely.
+ *
+ * The correct path is to inject a `subtask` Part into a session.prompt() call.
+ * opencode's runtime handles the actual subagent spawn, model assignment, and
+ * tool sandboxing (per memory-curator.md). We fire-and-forget via .catch().
  */
 async function dispatchCurator(ctx: any, projectDir: string, mode: "delta" | "full"): Promise<void> {
   const client = ctx.client
-  if (!client?.tool?.invoke) return
+  if (!client?.session?.prompt) {
+    log("warn", "dispatchCurator: client.session.prompt unavailable", { mode })
+    return
+  }
   const isFull = mode === "full"
   const prompt = [
-    `/${mode === "full" ? "dream" : "idle"} trigger — ${isFull ? "full reconcile" : "delta reconcile (only new queue.jsonl since last)"}.`,
+    `${isFull ? "FULL" : "DELTA"} reconcile trigger (${isFull ? "triggerThreshold reached or /dream" : "session.idle"}).`,
     `Project directory: ${projectDir}`,
     isFull
       ? `Force full reconcile — process ALL queue.jsonl entries, verify each candidate. No incremental skip.`
@@ -172,12 +226,33 @@ async function dispatchCurator(ctx: any, projectDir: string, mode: "delta" | "fu
     `Read data/memory/projects/*/MEMORY.md for current state.`,
     `Follow the workflow defined in memory-plugin/agents/memory-curator.md.`,
   ].join("\n")
-  await client.tool.invoke("task-dispatch", {
-    subagent_type: "lyra",
-    description: `memory curator ${mode} reconcile`,
-    prompt,
-    background: true,
-  } as any).catch(() => {})
+  try {
+    // Use the current session if we have its ID, else create a fresh one.
+    // SubtaskPartInput tells opencode to spawn the named agent as a subagent
+    // of the target session — opencode handles all wiring (model, tools, isolation).
+    const sessionID = ctx.sessionID ?? (await client.session.create({ agent: "memory-curator" }).then(
+      (r: any) => r?.data?.id,
+      () => undefined,
+    ))
+    if (!sessionID) {
+      log("warn", "dispatchCurator: no sessionID available", { mode })
+      return
+    }
+    await client.session.prompt({
+      sessionID,
+      parts: [
+        {
+          type: "subtask",
+          agent: "memory-curator",
+          prompt,
+          description: `memory curator ${mode} reconcile`,
+        },
+      ],
+    } as any)
+    log("info", "curator dispatched", { mode, sessionID })
+  } catch (e) {
+    log("error", "dispatchCurator failed", { mode, error: (e as Error).message })
+  }
 }
 
 // ---- Plugin ----
@@ -211,15 +286,17 @@ export const MemoryPlugin: Plugin = async (ctx) => {
     },
 
     /**
-     * /dream command: force full curator reconcile.
+     * /dream command: force full curator reconcile + reset turn counter.
      */
     "tui.command.execute": async (input: any) => {
       try {
         if (input?.command !== "/dream") return
-        getDb(projectDir)
+        const db = getDb(projectDir)
+        const projectHash = resolveProjectId(projectDir)
+        resetTurnCount(db, projectHash)
         writeMarker(projectDir, "dream", { triggeredBy: input?.sessionID ?? "?" })
-        log("info", "/dream triggered")
-        dispatchCurator(ctx, projectDir, "full").catch(() => {})
+        log("info", "/dream triggered (counter reset)")
+        dispatchCurator(ctx, projectDir, "full")
 
         return { output: "✓ /dream: curator dispatched (background)." }
       } catch (e) {
@@ -272,7 +349,28 @@ export const MemoryPlugin: Plugin = async (ctx) => {
 
         if (event.type === "session.idle") {
           writeMarker(projectDir, "session.idle", {})
-          dispatchCurator(ctx, projectDir, "delta").catch(() => {})
+          // Project-scoped turn counter: shared across all sessions of this project.
+          // When turn_count reaches triggerThreshold, dispatch FULL reconcile (no skip)
+          // and reset counter; otherwise dispatch delta as usual.
+          try {
+            const db = getDb(projectDir)
+            const projectHash = resolveProjectId(projectDir)
+            const newCount = incrementTurnCount(db, projectHash)
+            const mode = newCount >= cfg.triggerThreshold ? "full" : "delta"
+            if (mode === "full") {
+              resetTurnCount(db, projectHash)
+              log("info", "trigger threshold reached — full reconcile", {
+                threshold: cfg.triggerThreshold,
+                resetCount: newCount,
+              })
+            }
+            writeMarker(projectDir, `session.idle.${mode}`, { count: newCount, threshold: cfg.triggerThreshold })
+            dispatchCurator(ctx, projectDir, mode)
+          } catch (e) {
+            log("error", "session.idle counter logic failed", { error: (e as Error).message })
+            // Fallback to delta on any error
+            dispatchCurator(ctx, projectDir, "delta")
+          }
         }
 
         if (event.type === "session.compacted") {
