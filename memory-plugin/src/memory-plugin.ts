@@ -24,7 +24,6 @@ import { resolveProjectId } from "./lib/scope"
 interface MemoryConfig {
   enabled: boolean
   root: string
-  injection: { budgetTokens: number }
   /** User-turn threshold for forcing a curator dispatch. Default 15. */
   triggerThreshold: number
 }
@@ -32,7 +31,6 @@ interface MemoryConfig {
 const DEFAULT_CONFIG: MemoryConfig = {
   enabled: true,
   root: "data/memory",
-  injection: { budgetTokens: 3000 },
   triggerThreshold: 15,
 }
 
@@ -113,26 +111,6 @@ function readMemory(memoryDir: string): string {
   const mdPath = join(memoryDir, "MEMORY.md")
   if (!existsSync(mdPath)) return ""
   return readFileSync(mdPath, "utf-8")
-}
-
-/**
- * Build a compact context block from MEMORY.md for system-prompt injection.
- *
- * v3.3: Auto-injected via experimental.chat.system.transform on every LLM
- * call. Why system prompt (not "let LLM Read itself"):
- *   U-shape attention curve → system prompt = context FRONT = HIGH attention.
- *   Letting LLM Read MEMORY.md would place it in message list (mid-context)
- *   = LOW attention region. Auto-injection puts it where the model actually
- *   attends to it.
- */
-function buildMemoryContext(memoryDir: string, budgetTokens: number): string {
-  const body = readMemory(memoryDir)
-  if (!body) return ""
-  const maxChars = budgetTokens * 4
-  const trimmed = body.length > maxChars
-    ? body.slice(0, maxChars) + "\n\n[... MEMORY.md truncated, full file at " + join(memoryDir, "MEMORY.md") + "]"
-    : body
-  return `## 📚 Project Memory (auto-injected, ≤250 lines)\n\n${trimmed}\n\n---`
 }
 
 /** Write diagnostic marker. Keep last 20, auto-clean older ones. */
@@ -287,9 +265,8 @@ export const MemoryPlugin: Plugin = async (ctx) => {
 
   const mDir = memoryDir(cfg, projectDir)
   const projectHash = resolveProjectId(projectDir)
-  const hasMemory = existsSync(join(mDir, "MEMORY.md"))
 
-  log("info", "plugin loaded", { projectDir, projectHash, triggerThreshold: cfg.triggerThreshold, hasMemory })
+  log("info", "plugin loaded", { projectDir, projectHash, triggerThreshold: cfg.triggerThreshold })
 
   return {
     /**
@@ -308,21 +285,6 @@ export const MemoryPlugin: Plugin = async (ctx) => {
       } catch (e) {
         log("error", "/dream hook failed", { error: (e as Error).message })
         return { output: `✗ /dream failed: ${(e as Error).message}` }
-      }
-    },
-
-    /**
-     * Auto-inject MEMORY.md into system prompt at every LLM call.
-     * U-shape attention: system prompt = context FRONT = HIGH attention.
-     * Re-reads MEMORY.md each call (cheap, ≤10KB) to stay fresh after /dream.
-     */
-    "experimental.chat.system.transform": async (_input: any, output: any) => {
-      try {
-        if (!output?.system) return
-        const block = buildMemoryContext(mDir, cfg.injection.budgetTokens)
-        if (block) output.system.push(block)
-      } catch (e) {
-        log("error", "system.transform hook failed", { error: (e as Error).message })
       }
     },
 

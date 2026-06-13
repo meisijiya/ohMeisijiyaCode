@@ -1,27 +1,46 @@
 ---
 name: memory
-description: Load this skill when you need to dispatch the memory-curator (after technical decisions, user says "remember this", or /dream), or to understand what's tracked in MEMORY.md. The plugin auto-injects MEMORY.md into your system prompt at every LLM call — no need to Read it yourself.
+description: Load this skill at session start. The plugin handles WRITE path (queue.jsonl, curator dispatch, /dream). Your job: Read MEMORY.md in full once per session — it lands in the message list near the end of context (high attention region of U-shape curve). Then dispatch curator on natural decision boundaries.
 ---
 
 # Long-term Memory
 
-This project tracks durable knowledge in `data/memory/projects/<hash>/MEMORY.md` (curator-maintained, ≤250 lines). The plugin auto-injects it into your **system prompt** at every LLM call, so it's already in your high-attention context (U-shape: system prompt = front = high attention).
+This project tracks durable knowledge in `data/memory/projects/<hash>/MEMORY.md` (curator-maintained, ≤250 lines). The plugin does NOT auto-inject it — that would rewrite the system prompt every turn and bust the LLM cache.
 
-## Don't Read MEMORY.md yourself
+## Session Start — REQUIRED
 
-The plugin already injected it. Calling `Read` would put a duplicate in the message list (mid-context = LOW attention), wasting tokens and not improving recall.
+1. `Read data/memory/projects/<hash>/MEMORY.md` in full (use `Read` tool, not search).
+2. Note relevant context silently. Don't announce what you found.
+3. If file doesn't exist yet (new project), the plugin will create it on first `session.created` event — proceed normally.
 
-## When to Dispatch Curator
+**Why Read, not plugin-inject:** the Read result lands in the message list near the end of context (high attention region of the U-shape curve). It's a one-time read per session — no per-turn cache busting. Plugin auto-injection would rewrite system_prompt every turn.
+
+## When to Re-read MEMORY.md Mid-Session
+
+Re-read when the situation actually demands it, not on every turn. Triggers:
+
+- User references past work you don't remember ("as we discussed...", "the rule we set...")
+- User asks "what do you know about X in this project?"
+- A new technical decision is about to be made and you need to check for existing related rules
+- About to dispatch `memory-curator` and want to verify current state first
+
+**Do NOT re-read on**:
+- Every user message (waste of tokens, context already has it)
+- Simple clarification questions
+- Tool execution that doesn't involve project history
+
+## Persisting Knowledge — Curator Dispatch
 
 Dispatch `memory-curator` when the user:
 
 - Says **"remember this"**, **"记住"**, **"记下来"** → dispatch immediately
-- Says **"/dream"** → dispatch immediately (the plugin's `tui.command.execute` hook also handles this)
+- Says **"/dream"** → dispatch immediately (the plugin's `tui.command.execute` hook handles this too)
 - Has finished a major task / made a technical decision → dispatch at natural stopping points
 
 **Don't dispatch on**:
 - Trivial Q&A or back-and-forth debugging (let `session.idle` 15-turn counter handle it)
 - Mid-task (let curator batch changes for efficiency)
+- When queue.jsonl is empty (curator will be a no-op anyway)
 
 Dispatch pattern:
 
