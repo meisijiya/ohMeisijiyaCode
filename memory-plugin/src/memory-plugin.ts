@@ -24,7 +24,6 @@ import { resolveProjectId } from "./lib/scope"
 interface MemoryConfig {
   enabled: boolean
   root: string
-  injection: { budgetTokens: number }
   /** User-turn threshold for forcing a curator dispatch. Default 15. */
   triggerThreshold: number
 }
@@ -32,7 +31,6 @@ interface MemoryConfig {
 const DEFAULT_CONFIG: MemoryConfig = {
   enabled: true,
   root: "data/memory",
-  injection: { budgetTokens: 3000 },
   triggerThreshold: 15,
 }
 
@@ -108,23 +106,11 @@ function truncateQueue(cfg: MemoryConfig, projectDir: string): void {
   }
 }
 
-/** Read MEMORY.md for direct injection into agent context. */
+/** Read MEMORY.md for direct LLM consumption. */
 function readMemory(memoryDir: string): string {
   const mdPath = join(memoryDir, "MEMORY.md")
   if (!existsSync(mdPath)) return ""
   return readFileSync(mdPath, "utf-8")
-}
-
-/** Build a compact context block from MEMORY.md. Returns empty if too small to be useful. */
-function buildMemoryContext(memoryDir: string, budgetTokens: number): string {
-  const body = readMemory(memoryDir)
-  if (!body) return ""
-  // Just include the whole file if it fits; cap at budgetTokens (rough 1 token = 4 chars)
-  const maxChars = budgetTokens * 4
-  const trimmed = body.length > maxChars
-    ? body.slice(0, maxChars) + "\n\n[... MEMORY.md truncated, full file at " + join(memoryDir, "MEMORY.md") + "]"
-    : body
-  return `## 📚 Project Memory (auto-loaded)\n\n${trimmed}\n\n---`
 }
 
 /** Write diagnostic marker. Keep last 20, auto-clean older ones. */
@@ -279,9 +265,8 @@ export const MemoryPlugin: Plugin = async (ctx) => {
 
   const mDir = memoryDir(cfg, projectDir)
   const projectHash = resolveProjectId(projectDir)
-  const memoryContext = buildMemoryContext(mDir, cfg.injection.budgetTokens)
 
-  log("info", "plugin loaded", { projectDir, projectHash, injectionBudget: cfg.injection.budgetTokens, memoryLines: memoryContext ? "yes" : "no" })
+  log("info", "plugin loaded", { projectDir, projectHash, triggerThreshold: cfg.triggerThreshold })
 
   return {
     /**
@@ -300,25 +285,6 @@ export const MemoryPlugin: Plugin = async (ctx) => {
       } catch (e) {
         log("error", "/dream hook failed", { error: (e as Error).message })
         return { output: `✗ /dream failed: ${(e as Error).message}` }
-      }
-    },
-
-    /**
-     * Inject MEMORY.md into system prompt at every LLM call.
-     * Uses experimental.chat.system.transform — v3.2 alternative to the dead
-     * session.created injection. Cached at plugin-load time and re-read on
-     * each /dream (not on every turn) to avoid I/O in the hot path.
-     */
-    "experimental.chat.system.transform": async (_input: any, output: any) => {
-      try {
-        if (!output?.system) return
-        // Re-read on each call: cheap (≤10KB), ensures freshness after /dream
-        const fresh = buildMemoryContext(mDir, cfg.injection.budgetTokens)
-        if (fresh) {
-          output.system.push(fresh)
-        }
-      } catch (e) {
-        log("error", "system.transform hook failed", { error: (e as Error).message })
       }
     },
 
