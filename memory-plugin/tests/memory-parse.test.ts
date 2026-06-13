@@ -1,5 +1,5 @@
 import { describe, test, expect } from "bun:test"
-import { parseMemory, renderEntry, type Section, type MemoryEntry } from "../src/lib/memory-parse"
+import { parseMemory, renderEntry, type SectionName, type MemoryEntry } from "../src/lib/memory-parse"
 
 const SAMPLE = `# Project Memory
 

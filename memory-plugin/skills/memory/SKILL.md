@@ -1,34 +1,60 @@
 ---
 name: memory
-description: Load this skill at session start and whenever the user asks about project context, past decisions, established rules, tool/API/config discoveries, or wants to persist knowledge. This project has FTS5 long-term memory — searching it prevents re-litigation of settled decisions and hallucinated architecture. Do NOT skip: any session without memory context risks wrong choices.
+description: Load this skill at session start and whenever the user asks about project context, past decisions, established rules, or wants to persist knowledge. This project tracks durable knowledge in `data/memory/projects/<hash>/MEMORY.md` (curator-maintained, ≤250 lines). Reading it in full is the primary recall path. Use the `/dream` command to force a curator reconcile.
 ---
 
 # Long-term Memory
 
-This project tracks durable knowledge in `data/memory/projects/<hash>/MEMORY.md` (FTS5-indexed). A memory-curator subagent consolidates new knowledge after technical decisions.
+This project tracks durable knowledge in `data/memory/projects/<hash>/MEMORY.md` (curator-maintained, ≤250 lines). A `memory-curator` subagent consolidates new knowledge after technical decisions. The plugin auto-truncates `queue.jsonl` after each curator dispatch.
 
-## Session Start
+## Session Start — REQUIRED
 
-1. `search_memory(query="project context architecture rules", type="all")`
-2. Review results. If 0 hits: `Read data/memory/projects/*/MEMORY.md`.
-3. Note relevant context silently — you don't need to announce what you found.
+1. `Read data/memory/projects/<hash>/MEMORY.md` in full (use `Read` tool, not search).
+2. Note relevant context silently. Don't announce what you found.
+3. If file doesn't exist yet (new project), the plugin will create it on first `session.created` event — proceed normally.
 
-## search_memory Tool
+**Don't search MEMORY.md.** It's small (≤250 lines, ~10KB). The whole file fits comfortably in your context.
 
-FTS5 BM25 full-text search. Call with:
+## When to Re-read MEMORY.md Mid-Session
+
+Re-read when the situation actually demands it, not on every turn. Triggers that warrant a re-read:
+
+- User references past work you don't remember ("as we discussed...", "the rule we set...")
+- User asks "what do you know about X in this project?"
+- A new technical decision is about to be made and you need to check for existing related rules
+- You are about to dispatch `memory-curator` and want to verify current state first
+
+**Do NOT re-read on**:
+- Every user message (waste of tokens, context already has it from session start)
+- Simple clarification questions
+- Tool execution that doesn't involve project history
+
+## Persisting Knowledge — Curator Dispatch
+
+Dispatch `memory-curator` when the user:
+
+- Says **"remember this"**, **"记住"**, **"记下来"** → dispatch immediately
+- Says **"/dream"** → dispatch immediately (the plugin's `tui.command.execute` hook handles this too)
+- Has finished a major task / made a technical decision → dispatch at natural stopping points
+- Wants to force a full reconcile → `/dream`
+
+**Don't dispatch on**:
+- Trivial Q&A or back-and-forth debugging (let `session.idle` 15-turn counter handle it)
+- Mid-task (let curator batch changes for efficiency)
+- When queue.jsonl is empty (curator will be a no-op anyway)
+
+Dispatch pattern:
 
 ```
-search_memory(query="<keywords>", type="all", limit=5)
+task(
+  subagent_type: "lyra",
+  description: "memory curator reconcile",
+  prompt: "Reconcile data/memory/queue.jsonl into data/memory/projects/<hash>/MEMORY.md. Follow curator workflow in memory-plugin/agents/memory-curator.md."
+)
 ```
 
-- `type`: `"all"` (default), `"rules"`, `"architecture"`, `"discovered"`, `"context"`
-- Handles CJK, special chars. Results include relevance-scored snippets.
-- 0 results = retry with fewer keywords. Does NOT mean content doesn't exist (try `Read`).
+**Trust the plugin's 15-turn auto-trigger for the common case.** Manual dispatch is for explicit user intent.
 
-## Curator Dispatch
+## Path Resolution
 
-When user says "remember this", `/dream`, or a technical decision is finalized:
-
-- Dispatch `memory-curator` (background, `subagent_type: "lyra"`).
-- Prompt: `<delta|full> reconcile in <projectDir>. Read queue.jsonl + MEMORY.md. Follow curator workflow.`
-- `/dream` = full mode (manual). Architecture decisions = full. Rules/discoveries = delta.
+The hash in `data/memory/projects/<hash>/` is a 12-char SHA256 prefix of the absolute project path. To find it: `ls data/memory/projects/` and pick the single directory present.
