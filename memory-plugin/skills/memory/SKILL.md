@@ -1,47 +1,27 @@
 ---
 name: memory
-description: Load this skill at session start and whenever the user asks about project context, past decisions, established rules, or wants to persist knowledge. This project tracks durable knowledge in `data/memory/projects/<hash>/MEMORY.md` (curator-maintained, ≤250 lines). Reading it in full is the primary recall path. Use the `/dream` command to force a curator reconcile.
+description: Load this skill when you need to dispatch the memory-curator (after technical decisions, user says "remember this", or /dream), or to understand what's tracked in MEMORY.md. The plugin auto-injects MEMORY.md into your system prompt at every LLM call — no need to Read it yourself.
 ---
 
 # Long-term Memory
 
-This project tracks durable knowledge in `data/memory/projects/<hash>/MEMORY.md` (curator-maintained, ≤250 lines). A `memory-curator` subagent consolidates new knowledge after technical decisions. The plugin auto-truncates `queue.jsonl` after each curator dispatch.
+This project tracks durable knowledge in `data/memory/projects/<hash>/MEMORY.md` (curator-maintained, ≤250 lines). The plugin auto-injects it into your **system prompt** at every LLM call, so it's already in your high-attention context (U-shape: system prompt = front = high attention).
 
-## Session Start — REQUIRED
+## Don't Read MEMORY.md yourself
 
-1. `Read data/memory/projects/<hash>/MEMORY.md` in full (use `Read` tool, not search).
-2. Note relevant context silently. Don't announce what you found.
-3. If file doesn't exist yet (new project), the plugin will create it on first `session.created` event — proceed normally.
+The plugin already injected it. Calling `Read` would put a duplicate in the message list (mid-context = LOW attention), wasting tokens and not improving recall.
 
-**Don't search MEMORY.md.** It's small (≤250 lines, ~10KB). The whole file fits comfortably in your context.
-
-## When to Re-read MEMORY.md Mid-Session
-
-Re-read when the situation actually demands it, not on every turn. Triggers that warrant a re-read:
-
-- User references past work you don't remember ("as we discussed...", "the rule we set...")
-- User asks "what do you know about X in this project?"
-- A new technical decision is about to be made and you need to check for existing related rules
-- You are about to dispatch `memory-curator` and want to verify current state first
-
-**Do NOT re-read on**:
-- Every user message (waste of tokens, context already has it from session start)
-- Simple clarification questions
-- Tool execution that doesn't involve project history
-
-## Persisting Knowledge — Curator Dispatch
+## When to Dispatch Curator
 
 Dispatch `memory-curator` when the user:
 
 - Says **"remember this"**, **"记住"**, **"记下来"** → dispatch immediately
-- Says **"/dream"** → dispatch immediately (the plugin's `tui.command.execute` hook handles this too)
+- Says **"/dream"** → dispatch immediately (the plugin's `tui.command.execute` hook also handles this)
 - Has finished a major task / made a technical decision → dispatch at natural stopping points
-- Wants to force a full reconcile → `/dream`
 
 **Don't dispatch on**:
 - Trivial Q&A or back-and-forth debugging (let `session.idle` 15-turn counter handle it)
 - Mid-task (let curator batch changes for efficiency)
-- When queue.jsonl is empty (curator will be a no-op anyway)
 
 Dispatch pattern:
 
